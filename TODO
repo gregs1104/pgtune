@@ -1,0 +1,228 @@
+Features needed before V1.0 release
+===================================
+
+  Settings information
+    Validate against min/max - stub
+    Figure out how to deal with delimiters - stub
+    Format output so it looks nicer
+    Warning about listen_addresses if it's not set to '*'-input parameter?
+    Show original value in output
+    Put a pgconftune header before any changed settings
+    Limit shared memory use on Windows
+    
+  Platform specific details
+    Hint for <256MB case
+    Look for postgresql.conf file using PGDATA
+    Look for settings files based on path of executable
+    Output sysctl.conf suggestion
+    Test on Mac as additional OS
+    Test on Linux + Python 2.5, reported ValueError on wintypes via list
+
+  Model
+    Estimate shared memory use
+
+  Docs
+    Describe all the types clearly, refer to docs in usage notes
+    Suggest where the settings are still conservative
+      Data warehouse:  more stats, turn off auto vacuum
+    Does not account for application overhead, can reduce total mem if that's the case
+    Targets using 1/4 for shared_buffers, up to 1/2 for work_mem, and typically an additional 1/2 of the OS buffer cache
+    May not correctly parse existing values if you have manually increased either BLCKSZ or XLOG_BLCKSZ; should 
+      still set values correctly though.
+    Minimal systems should just use what comes out of initdb
+
+Outline of main desired features
+================================
+
+Config file class:
+  Interpret input units
+  Strip out items set to the default
+  Strip out comments
+
+V2.0 features
+  Wizard to ask questions
+  Real GUI
+  Brief versus verbose, removing comments
+    Collect comments that appear in the default config to allow stripping them out
+  Set max_prepared_transactions
+  Set FSM parameters
+  Add 8.3, 8.2, 8.1 compatibility
+  List of parameters not to mess with (collate, archive_command) may be needed for more advanced generation stuff
+  Allow overriding the OS information for sysctl output
+  Extend model to work properly on systems with smaller amounts of RAM aimed at a small number of users
+
+
+Python systems information
+==========================
+
+system parameter SC_INT_MAX will tell us what kind of platform we're on?
+
+SC_INT_MAX 2147483647
+SC_NPROCESSORS_CONF 4
+
+Available via platform information--it looks at the size of a pointer
+
+
+Notes about pg-generate-conf
+============================
+
+pg_generate_conf would take the following switches:
+
+    * -b , --basic — short conf file, listing only the 15-18 most commonly changed options
+    * -a , --advanced — conf file listing all 196+ options
+    * -t, --terse — conf file lists only category headings and actual settings, no comments
+    * -n, --normal — conf file has category and subcategory settings, with short, descriptive comments
+    * -v, --verbose — conf file lists full descriptions and recommendations in comments with each option
+    * -c "option = value" set specific option to specific value in the file
+    * -f "filename" — take options and values from file "filename" 
+
+The default would be "-b, -n", with specific settings for shared_buffers and wal_sync_method. The current postgresql.conf is a lot more like a "-a, -v" file. 
+
+Initial Review
+==============
+
+The following section is notes from Josh Berkus after reviewing the first
+pgtune prototype released:
+
+Solicit the following information from the user:
+-- Available RAM
+-- Expected Database Size (to nearest 10x)
+-- Type of Application
+        -- Web
+        -- Data Warehouse
+        -- Mixed
+        -- Desktop
+-- Operating System [Linux/Windows/OSX/Solaris/FreeBSD/other]
+
+From the above, you can derive all necessary calculations for the basics.  In the advanced version, we'll also want to ask:
+-- Memory used by other applications on the system?
+-- Analyze queries for performance?
+-- SSL?
+-- Production vs. Development status?
+-- How many connections?
+-- Logging setup:
+        Syslog
+        Analyze Performance
+        Private log with weekly rotation
+
+It's completely unnecessary to account for OS overhead.  This can and should be taken into account as part of the
+calculations for other figures.  For example, my 1/4 and 3/4 calculations ignore OS overhead.  You only need to reduce
+Available RAM when the server will be running something else, like a J2EE server or multiple databases.
+
+The FSM stuff is not be necessary if targeting 8.4.  Values:
+
+web:	 max_fsm_pages = DBsize / PageSize / 8
+oltp:	 max_fsm_pages = DBsize / PageSize / 8
+DW:	 max_fsm_pages = DBsize / PageSize / 32
+                (unless LoadSize is known)
+Mixed:	 max_fsm_pages = DBsize / PageSize / 8
+
+Desktop: max_fsm_pages = DBsize / PageSize / 8
+
+The specific elements of a "DW" use-case aren't necessarily tied to size.  They are:
+* data comes in in large batches rather than individual rows
+* small numbers of users
+* large complex queries
+
+For example, right now, I'm refactoring a database which is only 15GB, but is definitely DW behavior, so we want to keep
+max_connections to < 20 and turn autovaccum off.
+
+So I think we should ask the user what kind of DB they have (*with* docs which explain what the types mean) and fall back to testing by size if the info is not supplied.
+
+Regarding the level of default_stats_target, it sounds like people agree that it ought to be raised for the DW use-case, but disagree how much. If that's the case, what if we compromize at 50 for "mixed" and 100 for DW?  That should allay people's fears, and we can tinker with it when we have more data.
+
+The question is what value represents a good trade-off between the costs of having large stats targets -- longer analyze, more data stored in pg_statistics, more vacuuming of pg_statistics needed, longer plan times -- and the benefits of having larger stats targets -- fewer columns which need raised stats targets.
+
+Controversial Settings
+======================
+
+  -checkpoint_segments in the OLTP case should be larger
+  -Allocating work_mem:  total ram/connections seems a little scant in web / oltp case, but with the high connections it could make sense
+  -Going that large with statistics target
+  -I don't need DB size if I'm not setting the fsm stuff; leave that out of V8.4 targeted release
+  -Put a cap on maint_work_mem at 1GB
+
+Parsing Input Units
+===================
+
+parse_int is the routine
+
+kB MB and GB are only accepted ones
+
+Some parameters are "GUC_UNIT_MEMORY"; these are the ones this logic applies to
+  These are ones where the unit name ends with kB
+
+Raw integers are considered in kb unless they are blocksz or xlog_blcksz ones
+
+#define KB_PER_MB (1024)
+#define KB_PER_GB (1024*1024)
+
+kB:  Divided by (unit size)/kb (typically =8) to get kB
+MB:  Multplied by KB_PER_MB , divided as above
+GB:  Multiplied by KB_PER_GB
+
+There are also unit of time variables, don't care about those right now
+
+This is the logic that maps the block size stuff into the units field:
+
+                        case GUC_UNIT_KB:
+                                values[2] = "kB";
+                        case GUC_UNIT_BLOCKS:
+                                snprintf(buf, sizeof(buf), "%dkB", BLCKSZ / 1024);
+                        case GUC_UNIT_XBLOCKS:
+                                snprintf(buf, sizeof(buf), "%dkB", XLOG_BLCKSZ / 1024);
+
+So I don't have to worry about that; I can just use the unit size as kB
+
+For booleans, on and off are the officially supported version of those values, but many others
+are accepted too
+
+Hint interface
+==============
+
+One option for displaying suggestions is a hint interface that goes to
+standard error.  Sample hints:
+
+# HINT:  Increase SHMMAX
+# HINT:  You won't be able to connect to this database over TCP/IP with your listen_address setting
+# HINT:  The value for max_connections is being reduced from $X to $Y
+# HINT:  Expected maximum memory use for this configuration:  $X (pretty printed)
+# HINT:  Autovacuum is off  
+# HINT:  If you aren't using partitions, you can improve query planning time by turning constraint_exclusion off
+# HINT:  Windows doesn't handle large numbers of connections
+# HINT:  Consider a conneciton pooler
+
+Would be nice to make all the hints show up as comments in case they are mixed together.  
+That will make the SHMMAX example much less useful though
+
+Python review notes
+===================
+
+-from ctypes import * ( 18 ) makes the block difficult to read and
+pollutes the namespace.
+
+-The doc strings ( 59, 136, 206 ) don't follow standard conventions,
+described here http://www.python.org/dev/peps/pep-0257/.
+
+-Functions also support doc strings ( 342, 351, etc. )
+
+
+Sample usage
+============
+
+ ./pgtune -i /home/gsmith/data/3.0.12/postgresql.conf --type="OLTP" -o out.conf
+
+
+Estimating shared memory usage
+==============================
+
+http://www.postgresql.org/docs/current/static/kernel-resources.html
+
+Introduce a platform structure I pass around everywhere that
+abstracts away OS, memory, version, PostgreSQL version, etc.
+
+Introduce an "info" option that will show all the information in there,
+including anything auto-detected
+
+Include a stub for that to autodetect PG version (even if it doesn't
+work just yet)
