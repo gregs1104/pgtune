@@ -1,0 +1,184 @@
+add_missing_from	off	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Automatically adds missing table references to FROM clauses.	\N	user	bool	\N	\N	\N	off
+allow_system_table_mods	off	\N	Developer Options	Allows modifications of the structure of system tables.	\N	postmaster	bool	\N	\N	\N	off
+archive_command	(disabled)	\N	Write-Ahead Log / Settings	Sets the shell command that will be called to archive a WAL file.	\N	sighup	string	\N	\N	\N	
+archive_mode	off	\N	Write-Ahead Log / Settings	Allows archiving of WAL files using archive_command.	\N	postmaster	bool	\N	\N	\N	off
+archive_timeout	0	s	Write-Ahead Log / Settings	Forces a switch to the next xlog file if a new file has not been started within N seconds.	\N	sighup	integer	0	2147483647	\N	0
+array_nulls	on	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Enable input of NULL elements in arrays.	When turned on, unquoted NULL in an array input value means a null value; otherwise it is taken literally.	user	bool	\N	\N	\N	on
+authentication_timeout	60	s	Connections and Authentication / Security and Authentication	Sets the maximum allowed time to complete client authentication.	\N	sighup	integer	1	600	\N	60
+autovacuum	on	\N	Autovacuum	Starts the autovacuum subprocess.	\N	sighup	bool	\N	\N	\N	on
+autovacuum_analyze_scale_factor	0.1	\N	Autovacuum	Number of tuple inserts, updates or deletes prior to analyze as a fraction of reltuples.	\N	sighup	real	0	100	\N	0.1
+autovacuum_analyze_threshold	50		Autovacuum	Minimum number of tuple inserts, updates or deletes prior to analyze.	\N	sighup	integer	0	2147483647	\N	50
+autovacuum_freeze_max_age	200000000		Autovacuum	Age at which to autovacuum a table to prevent transaction ID wraparound.	\N	postmaster	integer	100000000	2000000000	\N	200000000
+autovacuum_max_workers	3		Autovacuum	Sets the maximum number of simultaneously running autovacuum worker processes.	\N	postmaster	integer	1	536870911	\N	3
+autovacuum_naptime	60	s	Autovacuum	Time to sleep between autovacuum runs.	\N	sighup	integer	1	2147483	\N	60
+autovacuum_vacuum_cost_delay	20	ms	Autovacuum	Vacuum cost delay in milliseconds, for autovacuum.	\N	sighup	integer	-1	1000	\N	20
+autovacuum_vacuum_cost_limit	-1		Autovacuum	Vacuum cost amount available before napping, for autovacuum.	\N	sighup	integer	-1	10000	\N	-1
+autovacuum_vacuum_scale_factor	0.2	\N	Autovacuum	Number of tuple updates or deletes prior to vacuum as a fraction of reltuples.	\N	sighup	real	0	100	\N	0.2
+autovacuum_vacuum_threshold	50		Autovacuum	Minimum number of tuple updates or deletes prior to vacuum.	\N	sighup	integer	0	2147483647	\N	50
+backslash_quote	safe_encoding	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Sets whether "\\'" is allowed in string literals.	\N	user	enum	\N	\N	{safe_encoding,on,off}	safe_encoding
+bgwriter_delay	200	ms	Resource Usage	Background writer sleep time between rounds.	\N	sighup	integer	10	10000	\N	200
+bgwriter_lru_maxpages	100		Resource Usage	Background writer maximum number of LRU pages to flush per round.	\N	sighup	integer	0	1000	\N	100
+bgwriter_lru_multiplier	2	\N	Resource Usage	Multiple of the average buffer usage to free per round.	\N	sighup	real	0	10	\N	2
+block_size	8192		Preset Options	Shows the size of a disk block.	\N	internal	integer	8192	8192	\N	8192
+bonjour_name		\N	Connections and Authentication / Connection Settings	Sets the Bonjour broadcast service name.	\N	postmaster	string	\N	\N	\N	
+check_function_bodies	on	\N	Client Connection Defaults / Statement Behavior	Check function bodies during CREATE FUNCTION.	\N	user	bool	\N	\N	\N	on
+checkpoint_completion_target	0.5	\N	Write-Ahead Log / Checkpoints	Time spent flushing dirty buffers during checkpoint, as fraction of checkpoint interval.	\N	sighup	real	0	1	\N	0.5
+checkpoint_segments	3		Write-Ahead Log / Checkpoints	Sets the maximum distance in log segments between automatic WAL checkpoints.	\N	sighup	integer	1	2147483647	\N	3
+checkpoint_timeout	300	s	Write-Ahead Log / Checkpoints	Sets the maximum time between automatic WAL checkpoints.	\N	sighup	integer	30	3600	\N	300
+checkpoint_warning	30	s	Write-Ahead Log / Checkpoints	Enables warnings if checkpoint segments are filled more frequently than this.	Write a message to the server log if checkpoints caused by the filling of checkpoint segment files happens more frequently than this number of seconds. Zero turns off the warning.	sighup	integer	0	2147483647	\N	30
+client_encoding	UTF8	\N	Client Connection Defaults / Locale and Formatting	Sets the client's character set encoding.	\N	user	string	\N	\N	\N	SQL_ASCII
+client_min_messages	notice	\N	Reporting and Logging / When to Log	Sets the message levels that are sent to the client.	Each level includes all the levels that follow it. The later the level, the fewer messages are sent.	user	enum	\N	\N	{debug5,debug4,debug3,debug2,debug1,log,notice,warning,error}	notice
+commit_delay	0		Write-Ahead Log / Settings	Sets the delay in microseconds between transaction commit and flushing WAL to disk.	\N	user	integer	0	100000	\N	0
+commit_siblings	5		Write-Ahead Log / Settings	Sets the minimum concurrent open transactions before performing commit_delay.	\N	user	integer	1	1000	\N	5
+constraint_exclusion	off	\N	Query Tuning / Other Planner Options	Enables the planner to use constraints to optimize queries.	Child table scans will be skipped if their constraints guarantee that no rows match the query.	user	bool	\N	\N	\N	off
+cpu_index_tuple_cost	0.005	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of processing each index entry during an index scan.	\N	user	real	0	1.79769e+308	\N	0.005
+cpu_operator_cost	0.0025	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of processing each operator or function call.	\N	user	real	0	1.79769e+308	\N	0.0025
+cpu_tuple_cost	0.01	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of processing each tuple (row).	\N	user	real	0	1.79769e+308	\N	0.01
+cursor_tuple_fraction	0.1	\N	Query Tuning / Other Planner Options	Sets the planner's estimate of the fraction of a cursor's rows that will be retrieved.	\N	user	real	0	1	\N	0.1
+custom_variable_classes		\N	Customized Options	Sets the list of known custom variable classes.	\N	sighup	string	\N	\N	\N	\N
+DateStyle	ISO, MDY	\N	Client Connection Defaults / Locale and Formatting	Sets the display format for date and time values.	Also controls interpretation of ambiguous date inputs.	user	string	\N	\N	\N	ISO, MDY
+db_user_namespace	off	\N	Connections and Authentication / Security and Authentication	Enables per-database user names.	\N	sighup	bool	\N	\N	\N	off
+deadlock_timeout	1000	ms	Lock Management	Sets the time to wait on a lock before checking for deadlock.	\N	sighup	integer	1	2147483	\N	1000
+debug_assertions	on	\N	Developer Options	Turns on various assertion checks.	This is a debugging aid.	user	bool	\N	\N	\N	on
+debug_pretty_print	on	\N	Reporting and Logging / What to Log	Indents parse and plan tree displays.	\N	user	bool	\N	\N	\N	on
+debug_print_parse	off	\N	Reporting and Logging / What to Log	Logs each query's parse tree.	\N	user	bool	\N	\N	\N	off
+debug_print_plan	off	\N	Reporting and Logging / What to Log	Logs each query's execution plan.	\N	user	bool	\N	\N	\N	off
+debug_print_rewritten	off	\N	Reporting and Logging / What to Log	Logs each query's rewritten parse tree.	\N	user	bool	\N	\N	\N	off
+default_statistics_target	10		Query Tuning / Other Planner Options	Sets the default statistics target.	This applies to table columns that have not had a column-specific target set via ALTER TABLE SET STATISTICS.	user	integer	1	1000	\N	10
+default_tablespace		\N	Client Connection Defaults / Statement Behavior	Sets the default tablespace to create tables and indexes in.	An empty string selects the database's default tablespace.	user	string	\N	\N	\N	
+default_text_search_config	pg_catalog.english	\N	Client Connection Defaults / Locale and Formatting	Sets default text search configuration.	\N	user	string	\N	\N	\N	pg_catalog.simple
+default_transaction_isolation	read committed	\N	Client Connection Defaults / Statement Behavior	Sets the transaction isolation level of each new transaction.	\N	user	enum	\N	\N	{serializable,"repeatable read","read committed","read uncommitted"}	read committed
+default_transaction_read_only	off	\N	Client Connection Defaults / Statement Behavior	Sets the default read-only status of new transactions.	\N	user	bool	\N	\N	\N	off
+default_with_oids	off	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Create new tables with OIDs by default.	\N	user	bool	\N	\N	\N	off
+dynamic_library_path	$libdir	\N	Client Connection Defaults / Other Defaults	Sets the path for dynamically loadable modules.	If a dynamically loadable module needs to be opened and the specified name does not have a directory component (i.e., the name does not contain a slash), the system will search this path for the specified file.	superuser	string	\N	\N	\N	$libdir
+effective_cache_size	16384	8kB	Query Tuning / Planner Cost Constants	Sets the planner's assumption about the size of the disk cache.	That is, the portion of the kernel's disk cache that will be used for PostgreSQL data files. This is measured in disk pages, which are normally 8 kB each.	user	integer	1	2147483647	\N	16384
+enable_bitmapscan	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of bitmap-scan plans.	\N	user	bool	\N	\N	\N	on
+enable_hashagg	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of hashed aggregation plans.	\N	user	bool	\N	\N	\N	on
+enable_hashjoin	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of hash join plans.	\N	user	bool	\N	\N	\N	on
+enable_indexscan	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of index-scan plans.	\N	user	bool	\N	\N	\N	on
+enable_mergejoin	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of merge join plans.	\N	user	bool	\N	\N	\N	on
+enable_nestloop	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of nested-loop join plans.	\N	user	bool	\N	\N	\N	on
+enable_seqscan	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of sequential-scan plans.	\N	user	bool	\N	\N	\N	on
+enable_sort	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of explicit sort steps.	\N	user	bool	\N	\N	\N	on
+enable_tidscan	on	\N	Query Tuning / Planner Method Configuration	Enables the planner's use of TID scan plans.	\N	user	bool	\N	\N	\N	on
+escape_string_warning	on	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Warn about backslash escapes in ordinary string literals.	\N	user	bool	\N	\N	\N	on
+external_pid_file		\N	File Locations	Writes the postmaster PID to the specified file.	\N	postmaster	string	\N	\N	\N	\N
+extra_float_digits	0		Client Connection Defaults / Locale and Formatting	Sets the number of digits displayed for floating-point values.	This affects real, double precision, and geometric data types. The parameter value is added to the standard number of digits (FLT_DIG or DBL_DIG as appropriate).	user	integer	-15	2	\N	0
+from_collapse_limit	8		Query Tuning / Other Planner Options	Sets the FROM-list size beyond which subqueries are not collapsed.	The planner will merge subqueries into upper queries if the resulting FROM list would have no more than this many items.	user	integer	1	2147483647	\N	8
+fsync	on	\N	Write-Ahead Log / Settings	Forces synchronization of updates to disk.	The server will use the fsync() system call in several places to make sure that updates are physically written to disk. This insures that a database cluster will recover to a consistent state after an operating system or hardware crash.	sighup	bool	\N	\N	\N	on
+full_page_writes	on	\N	Write-Ahead Log / Settings	Writes full pages to WAL when first modified after a checkpoint.	A page write in process during an operating system crash might be only partially written to disk.  During recovery, the row changes stored in WAL are not enough to recover.  This option writes pages when first modified after a checkpoint to WAL so full recovery is possible.	sighup	bool	\N	\N	\N	on
+geqo	on	\N	Query Tuning / Genetic Query Optimizer	Enables genetic query optimization.	This algorithm attempts to do planning without exhaustive searching.	user	bool	\N	\N	\N	on
+geqo_effort	5		Query Tuning / Genetic Query Optimizer	GEQO: effort is used to set the default for other GEQO parameters.	\N	user	integer	1	10	\N	5
+geqo_generations	0		Query Tuning / Genetic Query Optimizer	GEQO: number of iterations of the algorithm.	Zero selects a suitable default value.	user	integer	0	2147483647	\N	0
+geqo_pool_size	0		Query Tuning / Genetic Query Optimizer	GEQO: number of individuals in the population.	Zero selects a suitable default value.	user	integer	0	2147483647	\N	0
+geqo_selection_bias	2	\N	Query Tuning / Genetic Query Optimizer	GEQO: selective pressure within the population.	\N	user	real	1.5	2	\N	2
+geqo_threshold	12		Query Tuning / Genetic Query Optimizer	Sets the threshold of FROM items beyond which GEQO is used.	\N	user	integer	2	2147483647	\N	12
+gin_fuzzy_search_limit	0		Client Connection Defaults / Other Defaults	Sets the maximum allowed result for exact search by GIN.	\N	user	integer	0	2147483647	\N	0
+ignore_system_indexes	off	\N	Developer Options	Disables reading from system indexes.	It does not prevent updating the indexes, so it is safe to use.  The worst consequence is slowness.	backend	bool	\N	\N	\N	off
+integer_datetimes	on	\N	Preset Options	Datetimes are integer based.	\N	internal	bool	\N	\N	\N	on
+IntervalStyle	postgres	\N	Client Connection Defaults / Locale and Formatting	Sets the display format for interval values.	\N	user	enum	\N	\N	{postgres,postgres_verbose,sql_standard,iso_8601}	postgres
+join_collapse_limit	8		Query Tuning / Other Planner Options	Sets the FROM-list size beyond which JOIN constructs are not flattened.	The planner will flatten explicit JOIN constructs into lists of FROM items whenever a list of no more than this many items would result.	user	integer	1	2147483647	\N	8
+krb_caseins_users	off	\N	Connections and Authentication / Security and Authentication	Sets whether Kerberos and GSSAPI user names should be treated as case-insensitive.	\N	postmaster	bool	\N	\N	\N	off
+krb_realm		\N	Connections and Authentication / Security and Authentication	Sets realm to match Kerberos and GSSAPI users against.	\N	postmaster	string	\N	\N	\N	\N
+krb_server_hostname		\N	Connections and Authentication / Security and Authentication	Sets the hostname of the Kerberos server.	\N	postmaster	string	\N	\N	\N	\N
+krb_server_keyfile		\N	Connections and Authentication / Security and Authentication	Sets the location of the Kerberos server key file.	\N	postmaster	string	\N	\N	\N	
+krb_srvname	postgres	\N	Connections and Authentication / Security and Authentication	Sets the name of the Kerberos service.	\N	postmaster	string	\N	\N	\N	postgres
+lc_messages	en_US.UTF-8	\N	Client Connection Defaults / Locale and Formatting	Sets the language in which messages are displayed.	\N	superuser	string	\N	\N	\N	
+lc_monetary	en_US.UTF-8	\N	Client Connection Defaults / Locale and Formatting	Sets the locale for formatting monetary amounts.	\N	user	string	\N	\N	\N	C
+lc_numeric	en_US.UTF-8	\N	Client Connection Defaults / Locale and Formatting	Sets the locale for formatting numbers.	\N	user	string	\N	\N	\N	C
+lc_time	en_US.UTF-8	\N	Client Connection Defaults / Locale and Formatting	Sets the locale for formatting date and time values.	\N	user	string	\N	\N	\N	C
+listen_addresses	localhost	\N	Connections and Authentication / Connection Settings	Sets the host name or IP address(es) to listen to.	\N	postmaster	string	\N	\N	\N	localhost
+local_preload_libraries		\N	Client Connection Defaults / Other Defaults	Lists shared libraries to preload into each backend.	\N	backend	string	\N	\N	\N	
+log_autovacuum_min_duration	-1	ms	Reporting and Logging / What to Log	Sets the minimum execution time above which autovacuum actions will be logged.	Zero prints all actions. -1 turns autovacuum logging off.	sighup	integer	-1	2147483	\N	-1
+log_checkpoints	off	\N	Reporting and Logging / What to Log	Logs each checkpoint.	\N	sighup	bool	\N	\N	\N	off
+log_connections	off	\N	Reporting and Logging / What to Log	Logs each successful connection.	\N	backend	bool	\N	\N	\N	off
+log_destination	stderr	\N	Reporting and Logging / Where to Log	Sets the destination for server log output.	Valid values are combinations of "stderr", "syslog", "csvlog", and "eventlog", depending on the platform.	sighup	string	\N	\N	\N	stderr
+log_directory	pg_log	\N	Reporting and Logging / Where to Log	Sets the destination directory for log files.	Can be specified as relative to the data directory or as absolute path.	sighup	string	\N	\N	\N	pg_log
+log_disconnections	off	\N	Reporting and Logging / What to Log	Logs end of a session, including duration.	\N	backend	bool	\N	\N	\N	off
+log_duration	off	\N	Reporting and Logging / What to Log	Logs the duration of each completed SQL statement.	\N	superuser	bool	\N	\N	\N	off
+log_error_verbosity	default	\N	Reporting and Logging / When to Log	Sets the verbosity of logged messages.	\N	superuser	enum	\N	\N	{terse,default,verbose}	default
+log_executor_stats	off	\N	Statistics / Monitoring	Writes executor performance statistics to the server log.	\N	superuser	bool	\N	\N	\N	off
+log_filename	postgresql-%Y-%m-%d_%H%M%S.log	\N	Reporting and Logging / Where to Log	Sets the file name pattern for log files.	\N	sighup	string	\N	\N	\N	postgresql-%Y-%m-%d_%H%M%S.log
+log_hostname	off	\N	Reporting and Logging / What to Log	Logs the host name in the connection logs.	By default, connection logs only show the IP address of the connecting host. If you want them to show the host name you can turn this on, but depending on your host name resolution setup it might impose a non-negligible performance penalty.	sighup	bool	\N	\N	\N	off
+log_line_prefix		\N	Reporting and Logging / What to Log	Controls information prefixed to each log line.	If blank, no prefix is used.	sighup	string	\N	\N	\N	
+log_lock_waits	off	\N	Reporting and Logging / What to Log	Logs long lock waits.	\N	superuser	bool	\N	\N	\N	off
+log_min_duration_statement	-1	ms	Reporting and Logging / When to Log	Sets the minimum execution time above which statements will be logged.	Zero prints all queries. -1 turns this feature off.	superuser	integer	-1	2147483	\N	-1
+log_min_error_statement	error	\N	Reporting and Logging / When to Log	Causes all statements generating error at or above this level to be logged.	Each level includes all the levels that follow it. The later the level, the fewer messages are sent.	superuser	enum	\N	\N	{debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic}	error
+log_min_messages	warning	\N	Reporting and Logging / When to Log	Sets the message levels that are logged.	Each level includes all the levels that follow it. The later the level, the fewer messages are sent.	superuser	enum	\N	\N	{debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic}	warning
+log_parser_stats	off	\N	Statistics / Monitoring	Writes parser performance statistics to the server log.	\N	superuser	bool	\N	\N	\N	off
+log_planner_stats	off	\N	Statistics / Monitoring	Writes planner performance statistics to the server log.	\N	superuser	bool	\N	\N	\N	off
+log_rotation_age	1440	min	Reporting and Logging / Where to Log	Automatic log file rotation will occur after N minutes.	\N	sighup	integer	0	35791394	\N	1440
+log_rotation_size	10240	kB	Reporting and Logging / Where to Log	Automatic log file rotation will occur after N kilobytes.	\N	sighup	integer	0	2097151	\N	10240
+log_statement	none	\N	Reporting and Logging / What to Log	Sets the type of statements logged.	\N	superuser	enum	\N	\N	{none,ddl,mod,all}	none
+log_statement_stats	off	\N	Statistics / Monitoring	Writes cumulative performance statistics to the server log.	\N	superuser	bool	\N	\N	\N	off
+log_temp_files	-1	kB	Reporting and Logging / What to Log	Log the use of temporary files larger than this number of kilobytes.	Zero logs all files. The default is -1 (turning this feature off).	superuser	integer	-1	2147483647	\N	-1
+log_timezone	US/Eastern	\N	Reporting and Logging / What to Log	Sets the time zone to use in log messages.	\N	sighup	string	\N	\N	\N	UNKNOWN
+log_truncate_on_rotation	off	\N	Reporting and Logging / Where to Log	Truncate existing log files of same name during log rotation.	\N	sighup	bool	\N	\N	\N	off
+logging_collector	off	\N	Reporting and Logging / Where to Log	Start a subprocess to capture stderr output and/or csvlogs into log files.	\N	postmaster	bool	\N	\N	\N	off
+maintenance_work_mem	16384	kB	Resource Usage / Memory	Sets the maximum memory to be used for maintenance operations.	This includes operations such as VACUUM and CREATE INDEX.	user	integer	1024	2147483647	\N	16384
+max_connections	100		Connections and Authentication / Connection Settings	Sets the maximum number of concurrent connections.	\N	postmaster	integer	1	536870911	\N	100
+max_files_per_process	1000		Resource Usage / Kernel Resources	Sets the maximum number of simultaneously open files for each server process.	\N	postmaster	integer	25	2147483647	\N	1000
+max_function_args	100		Preset Options	Shows the maximum number of function arguments.	\N	internal	integer	100	100	\N	100
+max_identifier_length	63		Preset Options	Shows the maximum identifier length.	\N	internal	integer	63	63	\N	63
+max_index_keys	32		Preset Options	Shows the maximum number of index keys.	\N	internal	integer	32	32	\N	32
+max_locks_per_transaction	64		Lock Management	Sets the maximum number of locks per transaction.	The shared lock table is sized on the assumption that at most max_locks_per_transaction * max_connections distinct objects will need to be locked at any one time.	postmaster	integer	10	2147483647	\N	64
+max_prepared_transactions	5		Resource Usage	Sets the maximum number of simultaneously prepared transactions.	\N	postmaster	integer	0	2147483647	\N	5
+max_stack_depth	2048	kB	Resource Usage / Memory	Sets the maximum stack depth, in kilobytes.	\N	superuser	integer	100	2147483647	\N	100
+password_encryption	on	\N	Connections and Authentication / Security and Authentication	Encrypt passwords.	When a password is specified in CREATE USER or ALTER USER without writing either ENCRYPTED or UNENCRYPTED, this parameter determines whether the password is to be encrypted.	user	bool	\N	\N	\N	on
+port	5432		Connections and Authentication / Connection Settings	Sets the TCP port the server listens on.	\N	postmaster	integer	1	65535	\N	5432
+post_auth_delay	0	s	Developer Options	Waits N seconds on connection startup after authentication.	This allows attaching a debugger to the process.	backend	integer	0	2147483647	\N	0
+pre_auth_delay	0	s	Developer Options	Waits N seconds on connection startup before authentication.	This allows attaching a debugger to the process.	sighup	integer	0	60	\N	0
+random_page_cost	4	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of a nonsequentially fetched disk page.	\N	user	real	0	1.79769e+308	\N	4
+regex_flavor	advanced	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Sets the regular expression "flavor".	\N	user	enum	\N	\N	{advanced,extended,basic}	advanced
+search_path	"$user",public	\N	Client Connection Defaults / Statement Behavior	Sets the schema search order for names that are not schema-qualified.	\N	user	string	\N	\N	\N	"$user",public
+segment_size	131072	8kB	Preset Options	Shows the number of pages per disk file.	\N	internal	integer	131072	131072	\N	131072
+seq_page_cost	1	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of a sequentially fetched disk page.	\N	user	real	0	1.79769e+308	\N	1
+server_version	8.4devel	\N	Preset Options	Shows the server version.	\N	internal	string	\N	\N	\N	8.4devel
+server_version_num	80400		Preset Options	Shows the server version as an integer.	\N	internal	integer	80400	80400	\N	80400
+session_replication_role	origin	\N	Client Connection Defaults / Statement Behavior	Sets the session's behavior for triggers and rewrite rules.	\N	superuser	enum	\N	\N	{origin,replica,local}	origin
+shared_buffers	4096	8kB	Resource Usage / Memory	Sets the number of shared memory buffers used by the server.	\N	postmaster	integer	16	1073741823	\N	1024
+shared_preload_libraries		\N	Resource Usage / Kernel Resources	Lists shared libraries to preload into server.	\N	postmaster	string	\N	\N	\N	
+silent_mode	off	\N	Reporting and Logging / When to Log	Runs the server silently.	If this parameter is set, the server will automatically run in the background and any controlling terminals are dissociated.	postmaster	bool	\N	\N	\N	off
+sql_inheritance	on	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Causes subtables to be included by default in various commands.	\N	user	bool	\N	\N	\N	on
+ssl	off	\N	Connections and Authentication / Security and Authentication	Enables SSL connections.	\N	postmaster	bool	\N	\N	\N	off
+standard_conforming_strings	off	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Causes '...' strings to treat backslashes literally.	\N	user	bool	\N	\N	\N	off
+statement_timeout	0	ms	Client Connection Defaults / Statement Behavior	Sets the maximum allowed duration of any statement.	A value of 0 turns off the timeout.	user	integer	0	2147483647	\N	0
+stats_temp_directory	pg_stat_tmp	\N	Statistics / Query and Index Statistics Collector	Writes temporary statistics files to the specified directory.	\N	sighup	string	\N	\N	\N	pg_stat_tmp
+superuser_reserved_connections	3		Connections and Authentication / Connection Settings	Sets the number of connection slots reserved for superusers.	\N	postmaster	integer	0	536870911	\N	3
+synchronize_seqscans	on	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Enable synchronized sequential scans.	\N	user	bool	\N	\N	\N	on
+synchronous_commit	on	\N	Write-Ahead Log / Settings	Sets immediate fsync at commit.	\N	user	bool	\N	\N	\N	on
+syslog_facility	local0	\N	Reporting and Logging / Where to Log	Sets the syslog "facility" to be used when syslog enabled.	\N	sighup	enum	\N	\N	{local0,local1,local2,local3,local4,local5,local6,local7}	local0
+syslog_ident	postgres	\N	Reporting and Logging / Where to Log	Sets the program name used to identify PostgreSQL messages in syslog.	\N	sighup	string	\N	\N	\N	postgres
+tcp_keepalives_count	0		Client Connection Defaults / Other Defaults	Maximum number of TCP keepalive retransmits.	This controls the number of consecutive keepalive retransmits that can be lost before a connection is considered dead. A value of 0 uses the system default.	user	integer	0	2147483647	\N	0
+tcp_keepalives_idle	0	s	Client Connection Defaults / Other Defaults	Time between issuing TCP keepalives.	A value of 0 uses the system default.	user	integer	0	2147483647	\N	0
+tcp_keepalives_interval	0	s	Client Connection Defaults / Other Defaults	Time between TCP keepalive retransmits.	A value of 0 uses the system default.	user	integer	0	2147483647	\N	0
+temp_buffers	1024	8kB	Resource Usage / Memory	Sets the maximum number of temporary buffers used by each session.	\N	user	integer	100	1073741823	\N	1024
+temp_tablespaces		\N	Client Connection Defaults / Statement Behavior	Sets the tablespace(s) to use for temporary tables and sort files.	\N	user	string	\N	\N	\N	
+TimeZone	US/Eastern	\N	Client Connection Defaults / Locale and Formatting	Sets the time zone for displaying and interpreting time stamps.	\N	user	string	\N	\N	\N	UNKNOWN
+timezone_abbreviations	Default	\N	Client Connection Defaults / Locale and Formatting	Selects a file of time zone abbreviations.	\N	user	string	\N	\N	\N	UNKNOWN
+trace_notify	off	\N	Developer Options	Generates debugging output for LISTEN and NOTIFY.	\N	user	bool	\N	\N	\N	off
+trace_sort	off	\N	Developer Options	Emit information about resource usage in sorting.	\N	user	bool	\N	\N	\N	off
+track_activities	on	\N	Statistics / Query and Index Statistics Collector	Collects information about executing commands.	Enables the collection of information on the currently executing command of each session, along with the time at which that command began execution.	superuser	bool	\N	\N	\N	on
+track_activity_query_size	1024		Resource Usage / Memory	Sets the size reserved for pg_stat_activity.current_query, in bytes.	\N	postmaster	integer	100	102400	\N	1024
+track_counts	on	\N	Statistics / Query and Index Statistics Collector	Collects statistics on database activity.	\N	superuser	bool	\N	\N	\N	on
+track_functions	none	\N	Statistics / Query and Index Statistics Collector	Collects function-level statistics on database activity.	\N	superuser	enum	\N	\N	{none,pl,all}	none
+transform_null_equals	off	\N	Version and Platform Compatibility / Other Platforms and Clients	Treats "expr=NULL" as "expr IS NULL".	When turned on, expressions of the form expr = NULL (or NULL = expr) are treated as expr IS NULL, that is, they return true if expr evaluates to the null value, and false otherwise. The correct behavior of expr = NULL is to always return null (unknown).	user	bool	\N	\N	\N	off
+unix_socket_directory		\N	Connections and Authentication / Connection Settings	Sets the directory where the Unix-domain socket will be created.	\N	postmaster	string	\N	\N	\N	
+unix_socket_group		\N	Connections and Authentication / Connection Settings	Sets the owning group of the Unix-domain socket.	The owning user of the socket is always the user that starts the server.	postmaster	string	\N	\N	\N	
+unix_socket_permissions	511		Connections and Authentication / Connection Settings	Sets the access permissions of the Unix-domain socket.	Unix-domain sockets use the usual Unix file system permission set. The parameter value is expected to be a numeric mode specification in the form accepted by the chmod and umask system calls. (To use the customary octal format the number must start with a 0 (zero).)	postmaster	integer	0	511	\N	511
+update_process_title	on	\N	Statistics / Query and Index Statistics Collector	Updates the process title to show the active SQL command.	Enables updating of the process title every time a new SQL command is received by the server.	superuser	bool	\N	\N	\N	on
+vacuum_cost_delay	0	ms	Resource Usage	Vacuum cost delay in milliseconds.	\N	user	integer	0	1000	\N	0
+vacuum_cost_limit	200		Resource Usage	Vacuum cost amount available before napping.	\N	user	integer	1	10000	\N	200
+vacuum_cost_page_dirty	20		Resource Usage	Vacuum cost for a page dirtied by vacuum.	\N	user	integer	0	10000	\N	20
+vacuum_cost_page_hit	1		Resource Usage	Vacuum cost for a page found in the buffer cache.	\N	user	integer	0	10000	\N	1
+vacuum_cost_page_miss	10		Resource Usage	Vacuum cost for a page not found in the buffer cache.	\N	user	integer	0	10000	\N	10
+vacuum_freeze_min_age	100000000		Client Connection Defaults / Statement Behavior	Minimum age at which VACUUM should freeze a table row.	\N	user	integer	0	1000000000	\N	100000000
+wal_block_size	8192		Preset Options	Shows the block size in the write ahead log.	\N	internal	integer	8192	8192	\N	8192
+wal_buffers	8	8kB	Write-Ahead Log / Settings	Sets the number of disk-page buffers in shared memory for WAL.	\N	postmaster	integer	4	2147483647	\N	8
+wal_segment_size	2048	8kB	Preset Options	Shows the number of pages per write ahead log segment.	\N	internal	integer	2048	2048	\N	2048
+wal_sync_method	fdatasync	\N	Write-Ahead Log / Settings	Selects the method used for forcing WAL updates to disk.	\N	sighup	enum	\N	\N	{fsync,fdatasync,open_sync}	fdatasync
+wal_writer_delay	200	ms	Write-Ahead Log / Settings	WAL writer sleep time between WAL flushes.	\N	sighup	integer	1	10000	\N	200
+work_mem	1024	kB	Resource Usage / Memory	Sets the maximum memory to be used for query workspaces.	This much memory can be used by each internal sort operation and hash table before switching to temporary disk files.	user	integer	64	2147483647	\N	1024
+xmlbinary	base64	\N	Client Connection Defaults / Statement Behavior	Sets how binary values are to be encoded in XML.	\N	user	enum	\N	\N	{base64,hex}	base64
+xmloption	content	\N	Client Connection Defaults / Statement Behavior	Sets whether XML data in implicit parsing and serialization operations is to be considered as documents or content fragments.	\N	user	enum	\N	\N	{content,document}	content
+zero_damaged_pages	off	\N	Developer Options	Continues processing past damaged page headers.	Detection of a damaged page header normally causes PostgreSQL to report an error, aborting the current transaction. Setting zero_damaged_pages to true causes the system to instead report a warning, zero out the damaged page, and continue processing. This behavior will destroy data, namely all the rows on the damaged page.	superuser	bool	\N	\N	\N	off
