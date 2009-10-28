@@ -166,7 +166,7 @@ class PGConfigFile(object):
   # is that making it a second step introduces the possibility of
   # detecting which version someone is running, based on what
   # settings do and don't exist in their postgresql.conf
-  def storeSettings(self,settingsInstance)
+  def storeSettings(self,settingsInstance):
     settings=settingsInstance
 
   # Get the current value, assuming the default if that parameter
@@ -207,7 +207,7 @@ class PGConfigFile(object):
     #print name,"min=",settings.min_val(name),"max=",settings.max_val(name) 
 
     # Construct a new settings line
-    newLineText=str(name)+" = "+str(newValue)+
+    newLineText=str(name)+" = "+str(newValue)+ \
       " # pg_generate_conf wizard "+str(datetime.date.today())
     newLine=PGConfigLine(newLineText)
 
@@ -459,9 +459,9 @@ def wizardTune(config,options,settings):
 
   # Estimate memory on this system via parameter or system lookup
   totalMemory=options.totalMemory
-  if totalMemory==None:
+  if totalMemory is None:
     totalMemory=totalMem()
-  if totalMemory==None:
+  if totalMemory is None:
     print "Error:  total memory not specified and unable to detect"
     sys.exit(1)
 
@@ -537,7 +537,7 @@ if __name__=='__main__':
   options,args=ReadOptions() 
   
   configFile=options.inputConfig
-  if configFile==None:
+  if configFile is None:
     print >> sys.stderr,"Can't do anything without an input config file; try --help"
     sys.exit(1)
     # TODO Show usage here
@@ -555,7 +555,7 @@ if __name__=='__main__':
   wizardTune(config,options)
   
   outputFileName=options.outputConfig
-  if outputFileName==None:  
+  if outputFileName is None:  
     outputFile=sys.stdout
   else:
     outputFile=open(outputFileName,'w')
