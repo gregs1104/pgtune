@@ -264,21 +264,20 @@ class pg_settings(object):
   starting in PostgreSQL 8.4
   """
 
-  def __init__(self):
+  def __init__(self,settings_dir):
     self.KB_PER_MB=1024
     self.KB_PER_GB=1024*1024
-    self.readConfigFile()
+    self.readConfigFile(settings_dir)
 
-  def readConfigFile(self):
+  def readConfigFile(self,settings_dir):
     self.settingsLookup={}
     self.memoryUnits={}
 
     platformBits=32
     if platform.architecture()[0]=="64bit":  platformBits=64
-    # TODO Base this file location on where this script is at
     # TODO Support handling versions other than 8.4
     # TODO Allow passing in platform bit size
-    settingDumpFile="pg_settings-8.4-"+str(platformBits)
+    settingDumpFile=os.path.join(settings_dir,"pg_settings-8.4-"+str(platformBits))
     settingColumns=["name","setting","unit","category","short_desc",
       "extra_desc","context","vartype","min_val","max_val","enumvals",
       "boot_val"]
@@ -415,6 +414,9 @@ def ReadOptions():
   parser.add_option('-D','--debug',action="store_true",dest="debug",
     default="False",help="Enable debugging mode")
 
+  parser.add_option('-S','--settings',dest="settings_dir",default=None, 
+    help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
+
   options,args=parser.parse_args()
   
   if options.debug==True:
@@ -549,7 +551,10 @@ if __name__=='__main__':
     print
     config.debugPrintSettings()
 
-  settings=pg_settings()
+  if options.settings_dir is None:
+    options.settings_dir=os.path.abspath(os.path.dirname(sys.argv[0]))
+
+  settings=pg_settings(options.settings_dir)
   config.storeSettings(settings)
 
   wizardTune(config,options,settings)
