@@ -192,8 +192,8 @@ class PGConfigFile(object):
     return None
 
   def updateSetting(self,name,newValue):
-    current=currentValue(name,settings)
-    newValue=str(NewValue).strip()
+    current=self.currentValue(name)
+    newValue=str(newValue).strip()
 
     # If it matches what's currently in the file, don't do anything
     if current==newValue:
@@ -208,7 +208,7 @@ class PGConfigFile(object):
 
     # Construct a new settings line
     newLineText=str(name)+" = "+str(newValue)+ \
-      " # pg_generate_conf wizard "+str(datetime.date.today())
+      " # pgtune wizard "+str(datetime.date.today())
     newLine=PGConfigLine(newLineText)
 
     # Comment out any line already setting this value
@@ -465,14 +465,14 @@ def wizardTune(config,options,settings):
     print "Error:  total memory not specified and unable to detect"
     sys.exit(1)
 
-  kb=1024;
+  kb=1024
   mb=1024*kb
   gb=1024*mb
 
   # Memory allocation
   # Extract some values just to make the code below more compact
   # The base unit for memory types is the kB, so scale system memory to that
-  mem=totalMemory / kb
+  mem=int(totalMemory) / kb
   con=int(s['max_connections'])
 
   if totalMemory>=(256*mb):
@@ -552,7 +552,7 @@ if __name__=='__main__':
   settings=pg_settings()
   config.storeSettings(settings)
 
-  wizardTune(config,options)
+  wizardTune(config,options,settings)
   
   outputFileName=options.outputConfig
   if outputFileName is None:  
