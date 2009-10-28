@@ -92,7 +92,7 @@ class PGConfigLine(object):
     if equalIndex<0:
       return
 
-    name,value=line.split('=')
+    name,value=line.split('=',1)
     name=name.strip()
     value=value.strip()
     self.name=name;

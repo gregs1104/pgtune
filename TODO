@@ -4,6 +4,7 @@ Features needed before V1.0 release
   Settings information
     Validate against min/max - stub
     Figure out how to deal with delimiters - stub
+    For memory, handle the same memory input formats as the database
     Format output so it looks nicer
     Warning about listen_addresses if it's not set to '*'-input parameter?
     Show original value in output
