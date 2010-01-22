@@ -1,0 +1,5 @@
+Sample usage
+============
+
+ ./pgtune -i /home/gsmith/data/3.0.12/postgresql.conf --type="OLTP" -o out.conf
+

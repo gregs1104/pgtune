@@ -207,13 +207,6 @@ described here http://www.python.org/dev/peps/pep-0257/.
 
 -Functions also support doc strings ( 342, 351, etc. )
 
-
-Sample usage
-============
-
- ./pgtune -i /home/gsmith/data/3.0.12/postgresql.conf --type="OLTP" -o out.conf
-
-
 Estimating shared memory usage
 ==============================
 
