@@ -39,18 +39,20 @@ try:
 
 except:
     # TODO Try and use MFI if we're on Python 2.4 (so no ctypes) but it's available?
+    # get from registry "HARDWARE\RESOURCEMAP\System Resources\Physical Memory"
+    # see http://groups.google.com/groups?hl=en&lr=&client=firefox-a&threadm=b%25B_8.3255%24Dj6.2964%40nwrddc04.gnilink.net&rnum=2&prev=/groups%3Fhl%3Den%26lr%3D%26client%3Dfirefox-a%26q%3DHARDWARE%255CRESOURCEMAP%255CSystem%2BResources%255CPhysical%2BMemory%26btnG%3DSearch
     pass
 
-def totalMem():
+def total_mem():
     try:
-        if platform.system()=="Windows":
-            totalMem=Win32Memory()
+        if platform.system() == "Windows":
+            mem = Win32Memory()
         else:
             # Should work on other, more UNIX-ish platforms
             physPages = os.sysconf("SC_PHYS_PAGES")
             pageSize = os.sysconf("SC_PAGE_SIZE")
-            totalMem = physPages * pageSize
-        return totalMem
+            mem = physPages * pageSize
+        return mem
     except:
         return None
 
@@ -59,12 +61,12 @@ class PGConfigLine(object):
     """
     Stores the value of a single line in the postgresql.conf file, with the 
     following fields:
-      lineNumber : integer
-      originalLine : string
-      commentSection : string
-      setsParameter : boolean
+      line_number : integer
+      original_line : string
+      comment_section : string
+      sets_parameter : boolean
   
-    If setsParameter is True these will also be set:
+    If sets_parameter is True these will also be set:
       name : string
       readable : string
       raw : string  This is the actual value 
@@ -72,62 +74,59 @@ class PGConfigLine(object):
     """
 
     def __init__(self, line, num=0):
-        self.originalLine = line
-        self.lineNumber = num
-        self.setsParameter = False
+        self.original_line = line
+        self.line_number = num
+        self.sets_parameter = False
     
         # Remove comments and edge whitespace
-        self.commentSection = ""
-        commentIndex = line.find('#')
-        if commentIndex >= 0:      
-            line = line[0:commentIndex]
-            self.commentSection = line[commentIndex:]
+        self.comment_section = ""
+        self.name = None
+        self.sets_parameter = None
+        self.readable = None
+
+    def process_line(self):
+        line = self.original_line
+        comment_index = line.find('#')
+        if comment_index >= 0:      
+            line = line[0:comment_index]
+            self.comment_section = line[comment_index:]
     
         line = line.strip()
         if line == "":
             return
     
         # Split into name,value pair
-        equalIndex = line.find('=')
-        if equalIndex < 0:
+        if '=' not in line:
             return
     
         name, value = line.split('=', 1)
         name = name.strip()
         value = value.strip()
-        self.name = name;
-        self.setsParameter = True;
+        self.name = name
+        self.sets_parameter = True
     
         # Many types of values have ' ' characters around them, strip
         # TODO Set delimiter based on whether there is one here or not
-        value=value.rstrip("'")
-        value=value.lstrip("'")
+        value = value.rstrip("'")
+        value = value.lstrip("'")
     
         self.readable = value
-
-    def outputFormat(self):
-        s=self.originalLine;
-        return s
 
     # Implement a Java-ish interface for this class that renames 
     def value(self):
         return self.readable
 
-    # TODO Returns the value as a raw number
-    def internalValue(self,settings):
-        return self.readable
 
-    def isSetting(self):
-        return self.setsParameter
+    def is_setting(self):
+        return self.sets_parameter
 
     def __str__(self):
-        s = str(self.lineNumber) + " sets?=" + str(self.setsParameter)
-        if self.setsParameter:
-            s = s + " " + self.name + "=" + self.value()
-            # TODO:  Include commentSection, readable,raw, delimiter
-    
-        s = s + " originalLine:  " + self.originalLine
-        return s
+        result = ['%s sets?=%s' %(self.line_number, self.sets_parameter)]
+        if self.sets_parameter:
+            result.append('%s=%s' %(self.name, self.value))
+            # TODO:  Include comment_section, readable,raw, delimiter
+        result.append('original_line:  %s' % self.original_line)
+        return ' '.join(result)
 
 
 class PGConfigFile(object):
@@ -154,9 +153,10 @@ class PGConfigFile(object):
             lineNum = lineNum + 1
     
             configLine = PGConfigLine(line, lineNum)
+            configLine.process_line()
             self.configFile.append(configLine)
     
-            if configLine.isSetting():
+            if configLine.is_setting():
                 # TODO Check if the line is already in the file, in which case
                 # we should throw and error here suggesting that be corrected
                 self.settingsLookup[configLine.name] = configLine
@@ -214,8 +214,8 @@ class PGConfigFile(object):
         # Comment out any line already setting this value
         if self.settingsLookup.has_key(name):
             oldLine = self.settingsLookup[name]
-            oldLineNum = oldLine.lineNumber
-            commentedLineText = "# " + oldLine.outputFormat()
+            oldLineNum = oldLine.line_number
+            commentedLineText = "# " + oldLine.original_line
             commentedLine = PGConfigLine(commentedLineText, oldLineNum)
             # Subtract one here to adjust for zero offset of array.
             # Any future change that adds lines in-place will need to do
@@ -235,7 +235,7 @@ class PGConfigFile(object):
     
     def writeConfigFile(self, fileHandle):
         for l in self.configFile:
-            fileHandle.write(l.outputFormat() + "\n")
+            fileHandle.write(l.original_line + "\n")
 
     def debugPrintInput(self):
         print "Original file:"
@@ -295,7 +295,7 @@ class pg_settings(object):
             # compiled the server with a larger database or xlog block size
             # (BLCKSZ/XLOG_BLCKSZ).  This code has no notion that such a thing is
             # possible though.
-            d['memory_unit'] = d['unit'].endswith('kB');
+            d['memory_unit'] = d['unit'].endswith('kB')
             if d['memory_unit']:
                 divisor = d['unit'].rstrip('kB')
                 if divisor == '':
@@ -348,7 +348,7 @@ class pg_settings(object):
                 value = value / self.KB_PER_GB
                 unit = "GB"
             elif (value % self.KB_PER_MB == 0):
-                value = value / self.KB_PER_MB;
+                value = value / self.KB_PER_MB
                 unit = "MB"
             else:
                 unit = "kB"
@@ -394,7 +394,7 @@ class pg_settings(object):
   
 # Beginning of routines for this program
 
-def ReadOptions():
+def ReadOptions(program_args):
     parser = optparse.OptionParser(usage="usage: %prog [options]",
                                    version="1.0",
                                    conflict_handler="resolve")
@@ -405,7 +405,7 @@ def ReadOptions():
     parser.add_option('-o', '--output-config', dest="outputConfig", default=None, 
                       help="Output configuration file, defaults to standard output")
     
-    parser.add_option('-M', '--memory', dest="totalMemory", default=None, 
+    parser.add_option('-M', '--memory', dest="total_memory", default=None, 
                       help="Total system memory, will attempt to detect if unspecified")
   
     parser.add_option('-T', '--type', dest="dbType", default="Mixed", 
@@ -420,13 +420,13 @@ def ReadOptions():
     parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
                       help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
   
-    options, args = parser.parse_args()
+    options, args = parser.parse_args(program_args)
     
-    if options.debug==True:
+    if options.debug == True:
         print "Command line options:  ",options
         print "Command line arguments:  ",args
     
-    return options,args
+    return options, args, parser
 
 def binaryround(value):
     # Keeps the 4 most significant binary bits, truncates the rest so that
@@ -462,10 +462,10 @@ def wizardTune(config, options, settings):
         s['max_connections'] = options.connections
   
     # Estimate memory on this system via parameter or system lookup
-    totalMemory = options.totalMemory
-    if totalMemory is None:
-        totalMemory = totalMem()
-    if totalMemory is None:
+    total_memory = options.total_memory
+    if total_memory is None:
+        total_memory = total_mem()
+    if total_memory is None:
         print "Error:  total memory not specified and unable to detect"
         sys.exit(1)
   
@@ -476,10 +476,10 @@ def wizardTune(config, options, settings):
     # Memory allocation
     # Extract some values just to make the code below more compact
     # The base unit for memory types is the kB, so scale system memory to that
-    mem = int(totalMemory) / kb
+    mem = int(total_memory) / kb
     con = int(s['max_connections'])
   
-    if totalMemory >= (256 * mb):
+    if total_memory >= (256 * mb):
         if False:  # platform.system()=="Windows"
             # TODO Adjust shared_buffers for Windows
             pass
@@ -499,7 +499,7 @@ def wizardTune(config, options, settings):
         # Cap maintenence RAM at 1GB on servers with lots of memory
         # (Remember that the setting is in terms of kB here)
         if s['maintenance_work_mem'] > (1 * mb):
-            s['maintenance_work_mem'] = 1 * mb;
+            s['maintenance_work_mem'] = 1 * mb
   
     else:
         # TODO HINT about this tool not being optimal for low memory systems
@@ -530,14 +530,16 @@ def wizardTune(config, options, settings):
         # TODO Add show method to config class for similar reasons
         config.updateSetting(key, settings.show(key, value))
 
-if __name__ == '__main__':
-    options, args = ReadOptions() 
+
+def main(program_args):
+    options, args, parser = ReadOptions(program_args) 
     
     configFile = options.inputConfig
     if configFile is None:
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
-        sys.exit(1)
-        # TODO Show usage here
+        parser.show_usage()
+        return(1)
+
       
     config = PGConfigFile(configFile)
   
@@ -561,3 +563,6 @@ if __name__ == '__main__':
         outputFile = open(outputFileName, 'w')
   
     config.writeConfigFile(outputFile)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
