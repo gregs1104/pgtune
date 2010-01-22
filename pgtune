@@ -14,555 +14,550 @@ import platform
 
 # Windows specific routines
 try:
-  # ctypes is only available starting in Python 2.5
-  from ctypes import *
-  # wintypes is only is available on Windows
-  from ctypes.wintypes import *
+    # ctypes is only available starting in Python 2.5
+    from ctypes import *
+    # wintypes is only is available on Windows
+    from ctypes.wintypes import *
   
-  def Win32Memory():
-    class memoryInfo(Structure):
-        _fields_ = [
-            ('dwLength', c_ulong),
-            ('dwMemoryLoad', c_ulong),
-            ('dwTotalPhys', c_ulong),
-            ('dwAvailPhys', c_ulong),
-            ('dwTotalPageFile', c_ulong),
-            ('dwAvailPageFile', c_ulong),
-            ('dwTotalVirtual', c_ulong),
-            ('dwAvailVirtual', c_ulong)
-        ]
+    def Win32Memory():
+        class memoryInfo(Structure):
+            _fields_ = [
+              ('dwLength', c_ulong),
+              ('dwMemoryLoad', c_ulong),
+              ('dwTotalPhys', c_ulong),
+              ('dwAvailPhys', c_ulong),
+              ('dwTotalPageFile', c_ulong),
+              ('dwAvailPageFile', c_ulong),
+              ('dwTotalVirtual', c_ulong),
+              ('dwAvailVirtual', c_ulong)
+              ]
         
-    mi = memoryInfo()
-    mi.dwLength = sizeof(memoryInfo)
-    windll.kernel32.GlobalMemoryStatus(byref(mi))
-    return mi.dwTotalPhys
+        mi = memoryInfo()
+        mi.dwLength = sizeof(memoryInfo)
+        windll.kernel32.GlobalMemoryStatus(byref(mi))
+        return mi.dwTotalPhys
 
 except:
-  # TODO Try and use MFI if we're on Python 2.4 (so no ctypes) but it's available?
-  pass
+    # TODO Try and use MFI if we're on Python 2.4 (so no ctypes) but it's available?
+    pass
 
 def totalMem():
-  try:
-    if platform.system()=="Windows":
-      totalMem=Win32Memory()
-    else:
-      # Should work on other, more UNIX-ish platforms
-      physPages = os.sysconf("SC_PHYS_PAGES")
-      pageSize = os.sysconf("SC_PAGE_SIZE")
-      totalMem = physPages * pageSize
-    return totalMem
-  except:
-    return None
+    try:
+        if platform.system()=="Windows":
+            totalMem=Win32Memory()
+        else:
+            # Should work on other, more UNIX-ish platforms
+            physPages = os.sysconf("SC_PHYS_PAGES")
+            pageSize = os.sysconf("SC_PAGE_SIZE")
+            totalMem = physPages * pageSize
+        return totalMem
+    except:
+        return None
 
 
 class PGConfigLine(object):
-  """
-  Stores the value of a single line in the postgresql.conf file, with the 
-  following fields:
-    lineNumber : integer
-    originalLine : string
-    commentSection : string
-    setsParameter : boolean
+    """
+    Stores the value of a single line in the postgresql.conf file, with the 
+    following fields:
+      lineNumber : integer
+      originalLine : string
+      commentSection : string
+      setsParameter : boolean
   
-  If setsParameter is True these will also be set:
-    name : string
-    readable : string
-    raw : string  This is the actual value 
-    delimiter (expectations are ' and ")
-  """
+    If setsParameter is True these will also be set:
+      name : string
+      readable : string
+      raw : string  This is the actual value 
+      delimiter (expectations are '' and "")
+    """
 
-  def __init__(self,line,num=0):
-    self.originalLine=line
-    self.lineNumber=num
-    self.setsParameter=False
+    def __init__(self, line, num=0):
+        self.originalLine = line
+        self.lineNumber = num
+        self.setsParameter = False
+    
+        # Remove comments and edge whitespace
+        self.commentSection = ""
+        commentIndex = line.find('#')
+        if commentIndex >= 0:      
+            line = line[0:commentIndex]
+            self.commentSection = line[commentIndex:]
+    
+        line = line.strip()
+        if line == "":
+            return
+    
+        # Split into name,value pair
+        equalIndex = line.find('=')
+        if equalIndex < 0:
+            return
+    
+        name, value = line.split('=', 1)
+        name = name.strip()
+        value = value.strip()
+        self.name = name;
+        self.setsParameter = True;
+    
+        # Many types of values have ' ' characters around them, strip
+        # TODO Set delimiter based on whether there is one here or not
+        value=value.rstrip("'")
+        value=value.lstrip("'")
+    
+        self.readable = value
 
-    # Remove comments and edge whitespace
-    self.commentSection=""
-    commentIndex=line.find('#')
-    if commentIndex >= 0:      
-      line=line[0:commentIndex]
-      self.commentSection=line[commentIndex:]
+    def outputFormat(self):
+        s=self.originalLine;
+        return s
 
-    line=line.strip()
-    if line == "":
-      return
+    # Implement a Java-ish interface for this class that renames 
+    def value(self):
+        return self.readable
 
-    # Split into name,value pair
-    equalIndex=line.find('=')
-    if equalIndex<0:
-      return
+    # TODO Returns the value as a raw number
+    def internalValue(self,settings):
+        return self.readable
 
-    name,value=line.split('=',1)
-    name=name.strip()
-    value=value.strip()
-    self.name=name;
-    self.setsParameter=True;
+    def isSetting(self):
+        return self.setsParameter
 
-    # Many types of values have ' ' characters around them, strip
-    # TODO Set delimiter based on whether there is one here or not
-    value=value.rstrip("'")
-    value=value.lstrip("'")
-
-    self.readable=value
-
-  def outputFormat(self):
-    s=self.originalLine;
-    return s
-
-  # Implement a Java-ish interface for this class that renames 
-  def value(self):
-    return self.readable
-
-  # TODO Returns the value as a raw number
-  def internalValue(self,settings):
-    return self.readable
-
-  def isSetting(self):
-    return self.setsParameter
-
-  def __str__(self):
-    s=str(self.lineNumber)+" sets?="+str(self.setsParameter)
-    if self.setsParameter:
-      s=s+" "+self.name+"="+self.value()
-      # TODO:  Include commentSection, readable,raw, delimiter
-
-    s=s+" originalLine:  "+self.originalLine
-    return s
+    def __str__(self):
+        s = str(self.lineNumber) + " sets?=" + str(self.setsParameter)
+        if self.setsParameter:
+            s = s + " " + self.name + "=" + self.value()
+            # TODO:  Include commentSection, readable,raw, delimiter
+    
+        s = s + " originalLine:  " + self.originalLine
+        return s
 
 
 class PGConfigFile(object):
-  """
-  Read, write, and manage a postgresql.conf file
+    """
+    Read, write, and manage a postgresql.conf file
+  
+    There are two main structures here:
+  
+    configFile[]:  Array of PGConfigLine entries for each line in the file
+    settingLookup:  Dictionary mapping parameter names to the line that set them
+    """
+  
+    def __init__(self, filename):
+        self.readConfigFile(filename)
 
-  There are two main structures here:
+    def readConfigFile(self, filename):
+        self.filename = filename
+        self.settingsLookup = {}
+        self.configFile = []
+    
+        lineNum = 0
+        for line in open(filename):
+            line = line.rstrip('\n')
+            lineNum = lineNum + 1
+    
+            configLine = PGConfigLine(line, lineNum)
+            self.configFile.append(configLine)
+    
+            if configLine.isSetting():
+                # TODO Check if the line is already in the file, in which case
+                # we should throw and error here suggesting that be corrected
+                self.settingsLookup[configLine.name] = configLine
+    
+    # Much of this class will only operate with a settings database.
+    # The only reason that isn't required by the constructuor itself
+    # is that making it a second step introduces the possibility of
+    # detecting which version someone is running, based on what
+    # settings do and don't exist in their postgresql.conf
+    def storeSettings(self, settingsInstance):
+        settings = settingsInstance
+  
+    # Get the current value, assuming the default if that parameter
+    # isn't set
+    def currentValue(self, name):
+        current = settings.boot_val(name)
+        if self.settingsLookup.has_key(name):
+            current = settings.parse(name, self.settingsLookup[name].value())
+        current = current.strip()
+        return current
 
-  configFile[]:  Array of PGConfigLine entries for each line in the file
-  settingLookup:  Dictionary mapping parameter names to the line that set them
-  """
+    # Get any numeric value the way the server will see it, so things
+    # are always on the same scale.  Returns None if this is not a
+    # numeric value.  
+    # TODO Maybe throw an exception instead?
+    # TODO Finish this implementation for integers, floats
+    def numericValue(self, name, value):
+        return None
+  
+    # TODO Check against min,max.  Clip to edge and issue hint
+    # if value is outside of server limits.
+    def limitChecked(self, name, value):
+        return None
 
-  def __init__(self, filename):
-    self.readConfigFile(filename)
+    def updateSetting(self, name, newValue):
+        current = self.currentValue(name)
+        newValue = str(newValue).strip()
+    
+        # If it matches what's currently in the file, don't do anything
+        if current == newValue:
+            return
+    
+        # TODO Throw a HINT if you're reducing a value.  This only makes
+        # sense for integer and float settings, and presumes that there
+        # aren't any settings where a lower value is more aggressive
+    
+        # TODO Clamp the new value against the min and max for this setting
+        #print name,"min=",settings.min_val(name),"max=",settings.max_val(name) 
+    
+        # Construct a new settings line
+        newLineText = str(name) + " = " + str(newValue)+ \
+                      " # pgtune wizard " + str(datetime.date.today())
+        newLine = PGConfigLine(newLineText)
+    
+        # Comment out any line already setting this value
+        if self.settingsLookup.has_key(name):
+            oldLine = self.settingsLookup[name]
+            oldLineNum = oldLine.lineNumber
+            commentedLineText = "# " + oldLine.outputFormat()
+            commentedLine = PGConfigLine(commentedLineText, oldLineNum)
+            # Subtract one here to adjust for zero offset of array.
+            # Any future change that adds lines in-place will need to do
+            # something smarter here, because the line numbers won't match 
+            # the array indexes anymore
+            self.configFile[oldLineNum - 1] = commentedLine
+        
+        self.configFile.append(newLine)
+        self.settingsLookup[name] = newLine
+    
+    def updateIfLarger(self, name, newValue):
+        if self.settingsLookup.has_key(name):
+            # TODO This comparison needs all the values converted to numeric form
+            # and converted to the same scale before it will work
+            if (True):  #newValue > self.settingsLookup[name].value():
+                self.updateSetting(name, newValue)
+    
+    def writeConfigFile(self, fileHandle):
+        for l in self.configFile:
+            fileHandle.write(l.outputFormat() + "\n")
 
-  def readConfigFile(self,filename):
-    self.filename=filename
-    self.settingsLookup={}
-    self.configFile=[]
+    def debugPrintInput(self):
+        print "Original file:"
+        for l in self.configFile:
+            print str(l)
 
-    lineNum=0;
-    for line in open(filename):
-      line=line.rstrip('\n')
-      lineNum=lineNum + 1
-
-      configLine=PGConfigLine(line,lineNum)
-      self.configFile.append(configLine)
-
-      if configLine.isSetting():
-        # TODO Check if the line is already in the file, in which case
-        # we should throw and error here suggesting that be corrected
-        self.settingsLookup[configLine.name]=configLine
-
-  # Much of this class will only operate with a settings database.
-  # The only reason that isn't required by the constructuor itself
-  # is that making it a second step introduces the possibility of
-  # detecting which version someone is running, based on what
-  # settings do and don't exist in their postgresql.conf
-  def storeSettings(self,settingsInstance):
-    settings=settingsInstance
-
-  # Get the current value, assuming the default if that parameter
-  # isn't set
-  def currentValue(self,name):
-    current=settings.boot_val(name)
-    if self.settingsLookup.has_key(name):
-      current=settings.parse(name,self.settingsLookup[name].value())
-    current=current.strip()
-    return current
-
-  # Get any numeric value the way the server will see it, so things
-  # are always on the same scale.  Returns None if this is not a
-  # numeric value.  
-  # TODO Maybe throw an exception instead?
-  # TODO Finish this implementation for integers, floats
-  def numericValue(self,name,value):
-    return None
-
-  # TODO Check against min,max.  Clip to edge and issue hint
-  # if value is outside of server limits.
-  def limitChecked(self,name,value):
-    return None
-
-  def updateSetting(self,name,newValue):
-    current=self.currentValue(name)
-    newValue=str(newValue).strip()
-
-    # If it matches what's currently in the file, don't do anything
-    if current==newValue:
-      return
-
-    # TODO Throw a HINT if you're reducing a value.  This only makes
-    # sense for integer and float settings, and presumes that there
-    # aren't any settings where a lower value is more aggressive
-
-    # TODO Clamp the new value against the min and max for this setting
-    #print name,"min=",settings.min_val(name),"max=",settings.max_val(name) 
-
-    # Construct a new settings line
-    newLineText=str(name)+" = "+str(newValue)+ \
-      " # pgtune wizard "+str(datetime.date.today())
-    newLine=PGConfigLine(newLineText)
-
-    # Comment out any line already setting this value
-    if self.settingsLookup.has_key(name):
-      oldLine=self.settingsLookup[name]
-      oldLineNum=oldLine.lineNumber
-      commentedLineText="# "+oldLine.outputFormat()
-      commentedLine=PGConfigLine(commentedLineText,oldLineNum)
-      # Subtract one here to adjust for zero offset of array.
-      # Any future change that adds lines in-place will need to do
-      # something smarter here, because the line numbers won't match 
-      # the array indexes anymore
-      self.configFile[oldLineNum-1]=commentedLine
-
-    self.configFile.append(newLine)
-    self.settingsLookup[name]=newLine
-
-  def updateIfLarger(self,name,newValue):
-    if self.settingsLookup.has_key(name):
-      # TODO This comparison needs all the values converted to numeric form
-      # and converted to the same scale before it will work
-      if (True):  #newValue > self.settingsLookup[name].value():
-        self.updateSetting(name,newValue)
-
-  def writeConfigFile(self,fileHandle):
-    for l in self.configFile:
-      fileHandle.write(l.outputFormat()+"\n")
-
-  def debugPrintInput(self):
-    print "Original file:"
-    for l in self.configFile:
-      print str(l)
-
-  def debugPrintSettings(self):
-    print "Settings listing:"
-    for k in self.settingsLookup.keys():
-      print k,'=',self.settingsLookup[k].value()
+    def debugPrintSettings(self):
+        print "Settings listing:"
+        for k in self.settingsLookup.keys():
+            print k , '=' , self.settingsLookup[k].value()
 
 
 class pg_settings(object):
-  """
-  Read and index a delimited text dump of a typical pg_settings dump for 
-  the appropriate architecture--maximum values are different for some
-  settings on 32 and 64 bit platforms.
-  
-  An appropriately formatted dump can be generated with:
-
-  psql postgres -c "COPY (SELECT name,setting,unit,category,short_desc,
-  extra_desc,context,vartype,min_val,max_val,enumvals,boot_val 
-  FROM pg_settings WHERE NOT source='override') TO '/<path>/pg_settings-<ver>-<bits>'"
-
-  Note that some of these columns (such as boot_val) are only available 
-  starting in PostgreSQL 8.4
-  """
-
-  def __init__(self,settings_dir):
-    self.KB_PER_MB=1024
-    self.KB_PER_GB=1024*1024
-    self.readConfigFile(settings_dir)
-
-  def readConfigFile(self,settings_dir):
-    self.settingsLookup={}
-    self.memoryUnits={}
-
-    platformBits=32
-    if platform.architecture()[0]=="64bit":  platformBits=64
-    # TODO Support handling versions other than 8.4
-    # TODO Allow passing in platform bit size
-    settingDumpFile=os.path.join(settings_dir,"pg_settings-8.4-"+str(platformBits))
-    settingColumns=["name","setting","unit","category","short_desc",
-      "extra_desc","context","vartype","min_val","max_val","enumvals",
-      "boot_val"]
-    reader = csv.DictReader(open(settingDumpFile), settingColumns, delimiter="\t")
-    for d in reader:
-      # Convert nulls into blanks
-      for key in d.keys():
-        if d[key]=='\\N':  d[key]=""
+    """
+    Read and index a delimited text dump of a typical pg_settings dump for 
+    the appropriate architecture--maximum values are different for some
+    settings on 32 and 64 bit platforms.
     
-      # Memory units must be specified in some number of kB (never a larger 
-      # unit).  Typically they are either "kB" for 1kB or "8kB", unless someone
-      # compiled the server with a larger database or xlog block size
-      # (BLCKSZ/XLOG_BLCKSZ).  This code has no notion that such a thing is
-      # possible though.
-      d['memory_unit']=d['unit'].endswith('kB');
-      if d['memory_unit']:
-        divisor=d['unit'].rstrip('kB')
-        if divisor=='':  divisor="1"
-        d['memory_divisor']=int(divisor)
-      else:
-        d['memory_divisor']=None
+    An appropriately formatted dump can be generated with:
+  
+    psql postgres -c "COPY (SELECT name,setting,unit,category,short_desc,
+    extra_desc,context,vartype,min_val,max_val,enumvals,boot_val 
+    FROM pg_settings WHERE NOT source='override') TO '/<path>/pg_settings-<ver>-<bits>'"
+  
+    Note that some of these columns (such as boot_val) are only available 
+    starting in PostgreSQL 8.4
+    """
 
-      self.settingsLookup[d['name']]=d
+    def __init__(self, settings_dir):
+        self.KB_PER_MB = 1024
+        self.KB_PER_GB = 1024 * 1024
+        self.readConfigFile(settings_dir)
 
-  def debugPrintSettings(self):
-    for key in self.settingsLookup.keys():
-      print "key=",key," value=",self.settingsLookup[key]
+    def readConfigFile(self, settings_dir):
+        self.settingsLookup = {}
+        self.memoryUnits = {}
+    
+        platformBits = 32
+        if platform.architecture()[0] == "64bit":
+            platformBits = 64
+            
+        # TODO Support handling versions other than 8.4
+        # TODO Allow passing in platform bit size
+        settingDumpFile = os.path.join(settings_dir, "pg_settings-8.4-" + str(platformBits))
+        settingColumns = ["name", "setting", "unit", "category", "short_desc",
+                          "extra_desc", "context", "vartype", "min_val", "max_val", "enumvals",
+                          "boot_val"]
+        reader = csv.DictReader(open(settingDumpFile), settingColumns, delimiter="\t")
+        for d in reader:
+            # Convert nulls into blanks
+            for key in d.keys():
+                if d[key] == '\\N':
+                    d[key] = ""
+        
+            # Memory units must be specified in some number of kB (never a larger 
+            # unit).  Typically they are either "kB" for 1kB or "8kB", unless someone
+            # compiled the server with a larger database or xlog block size
+            # (BLCKSZ/XLOG_BLCKSZ).  This code has no notion that such a thing is
+            # possible though.
+            d['memory_unit'] = d['unit'].endswith('kB');
+            if d['memory_unit']:
+                divisor = d['unit'].rstrip('kB')
+                if divisor == '':
+                    divisor = "1"
+                d['memory_divisor'] = int(divisor)
+            else:
+                d['memory_divisor'] = None
+      
+            self.settingsLookup[d['name']] = d
+    
+    def debugPrintSettings(self):
+        for key in self.settingsLookup.keys():
+            print "key=", key, " value=", self.settingsLookup[key]
 
-  def min_val(self,setting):
-    return (self.settingsLookup[setting])['min_val']
+    def min_val(self, setting):
+        return (self.settingsLookup[setting])['min_val']
 
-  def max_val(self,setting):
-    return (self.settingsLookup[setting])['max_val']
+    def max_val(self, setting):
+        return (self.settingsLookup[setting])['max_val']
 
-  def boot_val(self,setting):
-    return (self.settingsLookup[setting])['boot_val']
+    def boot_val(self, setting):
+        return (self.settingsLookup[setting])['boot_val']
+  
+    def unit(self, setting):
+        return (self.settingsLookup[setting])['unit']
+  
+    def vartype(self, setting):
+        return (self.settingsLookup[setting])['vartype']
+  
+    def memory_unit(self, setting):
+        return (self.settingsLookup[setting])['memory_unit']
+  
+    def memory_divisor(self, setting):
+        return (self.settingsLookup[setting])['memory_divisor']
+  
+    def vartype(self, setting):
+        return (self.settingsLookup[setting])['vartype']
+  
+    def show(self, name, value):
+        formatted = value
+        s = self.settingsLookup[name]
+    
+        if s['memory_unit']:
+            # Use the same logic as the GUC code that implements "SHOW".  This uses
+            # larger units only if there's no loss of resolution in displaying
+            # with that value.  Therefore, if using this to output newly assigned
+            # values, that value needs to be rounded appropriately if you want
+            # it to show up as an even number of MB or GB
+            if (value % self.KB_PER_GB == 0):
+                value = value / self.KB_PER_GB
+                unit = "GB"
+            elif (value % self.KB_PER_MB == 0):
+                value = value / self.KB_PER_MB;
+                unit = "MB"
+            else:
+                unit = "kB"
+            formatted = str(value) + unit
+      
+        # print >> sys.stderr,"Showing",name,"with value",value,"gives",formatted
+        return formatted
 
-  def unit(self,setting):
-    return (self.settingsLookup[setting])['unit']
-
-  def vartype(self,setting):
-    return (self.settingsLookup[setting])['vartype']
-
-  def memory_unit(self,setting):
-    return (self.settingsLookup[setting])['memory_unit']
-
-  def memory_divisor(self,setting):
-    return (self.settingsLookup[setting])['memory_divisor']
-
-  def vartype(self,setting):
-    return (self.settingsLookup[setting])['vartype']
-
-  def show(self,name,value):
-    formatted=value
-    s=self.settingsLookup[name]
-
-    if s['memory_unit']:
-      # Use the same logic as the GUC code that implements "SHOW".  This uses
-      # larger units only if there's no loss of resolution in displaying
-      # with that value.  Therefore, if using this to output newly assigned
-      # values, that value needs to be rounded appropriately if you want
-      # it to show up as an even number of MB or GB
-      if (value % self.KB_PER_GB == 0):
-        value=value/self.KB_PER_GB
-        unit="GB"
-      elif (value % self.KB_PER_MB == 0):
-        value=value / self.KB_PER_MB;
-        unit="MB"
-      else:
-        unit="kB"
-      formatted=str(value)+unit
-
-    # print >> sys.stderr,"Showing",name,"with value",value,"gives",formatted
-    return formatted
-
-  # Parse an integer value into its internal form.  The main difficulty
-  # here is that if that integer is a memory unit, you need to be aware
-  # of what unit it is specified in.  1kB and 8kB pages are two popular ones
-  # and that is reflected in memory_divisor
-  def parse_int(self,name,value):
-    s=self.settingsLookup[name]
-
-    if self.memory_unit(name):
-      if value.endswith('kB'):
-        internal=int(value.rstrip('kB'))
-        internal=internal / self.memory_divisor(name)
-      elif value.endswith('MB'):
-        internal=int(value.rstrip('MB'))
-        internal=internal * self.KB_PER_MB / self.memory_divisor(name)
-      elif value.endswith('GB'):
-        internal=int(value.rstrip('GB'))
-        internal=internal * self.KB_PER_GB / self.memory_divisor(name)
-      else:
-        internal=int(value)        
-    else:        
-      internal=int(value)        
-
-    return internal
-
-  def parse(self,name,value):
-    # Return a string representing the internal value this setting would
-    # be parsed into.  This includes converting memory values into their
-    # internal integer representation
-    if self.vartype(name)=="integer":
-      return str(self.parse_int(name,value))
-    # TODO It might be helpful to eventually handle all the boolean
-    # representations that the PostgreSQL GUC code understands, outputting
-    # in standard form
-    return value
-
+    # Parse an integer value into its internal form.  The main difficulty
+    # here is that if that integer is a memory unit, you need to be aware
+    # of what unit it is specified in.  1kB and 8kB pages are two popular ones
+    # and that is reflected in memory_divisor
+    def parse_int(self, name, value):
+        s = self.settingsLookup[name]
+    
+        if self.memory_unit(name):
+            if value.endswith('kB'):
+                internal = int(value.rstrip('kB'))
+                internal = internal / self.memory_divisor(name)
+            elif value.endswith('MB'):
+                internal = int(value.rstrip('MB'))
+                internal = internal * self.KB_PER_MB / self.memory_divisor(name)
+            elif value.endswith('GB'):
+                internal = int(value.rstrip('GB'))
+                internal = internal * self.KB_PER_GB / self.memory_divisor(name)
+            else:
+                internal = int(value)        
+        else:        
+            internal = int(value)        
+    
+        return internal
+  
+    def parse(self, name, value):
+        # Return a string representing the internal value this setting would
+        # be parsed into.  This includes converting memory values into their
+        # internal integer representation
+        if self.vartype(name) == "integer":
+            return str(self.parse_int(name, value))
+        # TODO It might be helpful to eventually handle all the boolean
+        # representations that the PostgreSQL GUC code understands, outputting
+        # in standard form
+        return value
+  
 # Beginning of routines for this program
 
 def ReadOptions():
-  parser=optparse.OptionParser(
-    usage="usage: %prog [options]",
-    version="1.0",
-    conflict_handler="resolve")
-    
-  parser.add_option('-i','--input-config',dest="inputConfig",default=None,
-    help="Input configuration file")
-
-  parser.add_option('-o','--output-config',dest="outputConfig",default=None, 
-    help="Output configuration file, defaults to standard output")
-    
-  parser.add_option('-M','--memory',dest="totalMemory",default=None, 
-    help="Total system memory, will attempt to detect if unspecified")
-
-  parser.add_option('-T','--type',dest="dbType",default="Mixed", 
-    help="Database type, defaults to Mixed, valid options are DW, OLTP, Web, Mixed, Desktop")
-
-  parser.add_option('-c','--connections',dest="connections",default=None, 
-    help="Maximum number of expected connections, default depends on database type")
-
-  parser.add_option('-D','--debug',action="store_true",dest="debug",
-    default="False",help="Enable debugging mode")
-
-  parser.add_option('-S','--settings',dest="settings_dir",default=None, 
-    help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
-
-  options,args=parser.parse_args()
+    parser = optparse.OptionParser(usage="usage: %prog [options]",
+                                   version="1.0",
+                                   conflict_handler="resolve")
+      
+    parser.add_option('-i', '--input-config', dest="inputConfig", default=None,
+                      help="Input configuration file")
   
-  if options.debug==True:
-    print "Command line options:  ",options
-    print "Command line arguments:  ",args
+    parser.add_option('-o', '--output-config', dest="outputConfig", default=None, 
+                      help="Output configuration file, defaults to standard output")
+    
+    parser.add_option('-M', '--memory', dest="totalMemory", default=None, 
+                      help="Total system memory, will attempt to detect if unspecified")
   
-  return options,args
+    parser.add_option('-T', '--type', dest="dbType", default="Mixed", 
+                      help="Database type, defaults to Mixed, valid options are DW, OLTP, Web, Mixed, Desktop")
+  
+    parser.add_option('-c', '--connections', dest="connections", default=None, 
+                      help="Maximum number of expected connections, default depends on database type")
+  
+    parser.add_option('-D', '--debug', action="store_true", dest="debug",
+                      default="False", help="Enable debugging mode")
+  
+    parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
+                      help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
+  
+    options, args = parser.parse_args()
+    
+    if options.debug==True:
+        print "Command line options:  ",options
+        print "Command line arguments:  ",args
+    
+    return options,args
 
 def binaryround(value):
-  # Keeps the 4 most significant binary bits, truncates the rest so that
-  # SHOW will be likely to use a larger divisor
-  multiplier=1
-  while value>16:
-    value=int(value/2)
-    multiplier=multiplier * 2
-  return multiplier * value
+    # Keeps the 4 most significant binary bits, truncates the rest so that
+    # SHOW will be likely to use a larger divisor
+    multiplier = 1
+    while value > 16:
+        value = int(value / 2)
+        multiplier = multiplier * 2
+    return multiplier * value
 
-def wizardTune(config,options,settings):
-  # We expect the following options are passed into here:
-  #
-  # dbType:  Defaults to mixed
-  # connections:  If missing, will set based on dbType
-  # totalMemory:  If missing, will detect
-
-  dbType=options.dbType.lower()
-
-  # Save all settings to be updated as (setting,value) dictionary values
-  s={}
-  try:
-    s['max_connections']={
-      'web':200,'oltp':300,'dw':20,'mixed':80,'desktop':5}[dbType]
-  except KeyError:
-    print "Error:  unexpected setting for dbType"
-    sys.exit(1)
-
-  # Now that we've screened for that, we know we've got a good dbType and
-  # don't have to wrap the rest of these settings in an try block
-
-  # Allow overriding the maximum connections
-  if options.connections!=None:
-    s['max_connections']=options.connections
-
-  # Estimate memory on this system via parameter or system lookup
-  totalMemory=options.totalMemory
-  if totalMemory is None:
-    totalMemory=totalMem()
-  if totalMemory is None:
-    print "Error:  total memory not specified and unable to detect"
-    sys.exit(1)
-
-  kb=1024
-  mb=1024*kb
-  gb=1024*mb
-
-  # Memory allocation
-  # Extract some values just to make the code below more compact
-  # The base unit for memory types is the kB, so scale system memory to that
-  mem=int(totalMemory) / kb
-  con=int(s['max_connections'])
-
-  if totalMemory>=(256*mb):
-    if False:  # platform.system()=="Windows"
-      # TODO Adjust shared_buffers for Windows
-      pass
-    else:
-      s['shared_buffers']={
-        'web':mem/4, 'oltp':mem/4,'dw':mem/4,
-        'mixed':mem/4, 'desktop':mem/16}[dbType]
-
-    s['effective_cache_size']={
-      'web':mem*3/4, 'oltp':mem*3/4,'dw':mem*3/4,
-      'mixed':mem*3/4,'desktop':mem/4}[dbType]
-
-    s['work_mem']={
-      'web':mem/con, 'oltp':mem/con,'dw':mem/con/2,
-      'mixed':mem/con/2,'desktop':mem/con/6}[dbType]
-
-    s['maintenance_work_mem']={
-      'web':mem/16, 'oltp':mem/16,'dw':mem/8,
-      'mixed':mem/16,'desktop':mem/16}[dbType]
-    # Cap maintenence RAM at 1GB on servers with lots of memory
-    # (Remember that the setting is in terms of kB here)
-    if s['maintenance_work_mem']>(1*mb):
-      s['maintenance_work_mem']=1*mb;
-
-  else:
-    # TODO HINT about this tool not being optimal for low memory systems
-    pass
-
-  # Checkpoint parameters
-  s['checkpoint_segments']={
-    'web':8, 'oltp':16, 'dw':64,
-    'mixed':16, 'desktop':3}[dbType]
-
-  s['checkpoint_completion_target']={
-    'web':0.7, 'oltp':0.9, 'dw':0.9,
-    'mixed':0.9, 'desktop':0.5}[dbType]
-
-  s['wal_buffers']=512 * s['checkpoint_segments']
-
-  # Paritioning and statistics
-  s['constraint_exclusion']={
-    'web':'off', 'oltp':'off', 'dw':'on', 
-    'mixed':'on', 'desktop':'off'}[dbType]
-
-  s['default_statistics_target']={
-    'web':10, 'oltp':10, 'dw':100, 
-    'mixed':50, 'desktop':10}[dbType]
-
-  for key in s.keys():
-    value=s[key]
-    # TODO Make this logic part of the config class, so this
-    # function doesn't need to be passed settings
-    if settings.memory_unit(key):
-      value=binaryround(s[key])
-    # TODO Add show method to config class for similar reasons
-    config.updateSetting(key,settings.show(key,value))
-
-if __name__=='__main__':
-  options,args=ReadOptions() 
+def wizardTune(config, options, settings):
+    # We expect the following options are passed into here:
+    #
+    # dbType:  Defaults to mixed
+    # connections:  If missing, will set based on dbType
+    # totalMemory:  If missing, will detect
   
-  configFile=options.inputConfig
-  if configFile is None:
-    print >> sys.stderr,"Can't do anything without an input config file; try --help"
-    sys.exit(1)
-    # TODO Show usage here
+    dbType = options.dbType.lower()
+  
+    # Save all settings to be updated as (setting,value) dictionary values
+    s = {}
+    try:
+        s['max_connections'] = {'web':200, 'oltp':300, 'dw':20, 'mixed':80, 'desktop':5}[dbType]
+    except KeyError:
+        print "Error:  unexpected setting for dbType"
+        sys.exit(1)
+  
+    # Now that we've screened for that, we know we've got a good dbType and
+    # don't have to wrap the rest of these settings in an try block
+  
+    # Allow overriding the maximum connections
+    if options.connections != None:
+        s['max_connections'] = options.connections
+  
+    # Estimate memory on this system via parameter or system lookup
+    totalMemory = options.totalMemory
+    if totalMemory is None:
+        totalMemory = totalMem()
+    if totalMemory is None:
+        print "Error:  total memory not specified and unable to detect"
+        sys.exit(1)
+  
+    kb = 1024
+    mb = 1024 * kb
+    gb = 1024 * mb
+  
+    # Memory allocation
+    # Extract some values just to make the code below more compact
+    # The base unit for memory types is the kB, so scale system memory to that
+    mem = int(totalMemory) / kb
+    con = int(s['max_connections'])
+  
+    if totalMemory >= (256 * mb):
+        if False:  # platform.system()=="Windows"
+            # TODO Adjust shared_buffers for Windows
+            pass
+        else:
+            s['shared_buffers'] = {'web':mem / 4, 'oltp':mem / 4, 'dw':mem / 4,
+                                   'mixed':mem / 4, 'desktop':mem / 16}[dbType]
     
-  config=PGConfigFile(configFile)
-
-  if options.debug==True:  
-    config.debugPrintInput()
-    print
-    config.debugPrintSettings()
-
-  if options.settings_dir is None:
-    options.settings_dir=os.path.abspath(os.path.dirname(sys.argv[0]))
-
-  settings=pg_settings(options.settings_dir)
-  config.storeSettings(settings)
-
-  wizardTune(config,options,settings)
+        s['effective_cache_size'] = {'web':mem * 3 / 4, 'oltp':mem * 3 / 4, 'dw':mem * 3 / 4,
+                                     'mixed':mem * 3 / 4, 'desktop':mem / 4}[dbType]
+    
+        s['work_mem'] = {'web':mem / con, 'oltp':mem / con,'dw':mem / con / 2,
+                         'mixed':mem / con / 2,'desktop':mem / con / 6}[dbType]
+    
+        s['maintenance_work_mem'] = {'web':mem / 16, 'oltp':mem / 16,'dw':mem / 8,
+                                   'mixed':mem / 16,'desktop':mem / 16}[dbType]
+        
+        # Cap maintenence RAM at 1GB on servers with lots of memory
+        # (Remember that the setting is in terms of kB here)
+        if s['maintenance_work_mem'] > (1 * mb):
+            s['maintenance_work_mem'] = 1 * mb;
   
-  outputFileName=options.outputConfig
-  if outputFileName is None:  
-    outputFile=sys.stdout
-  else:
-    outputFile=open(outputFileName,'w')
+    else:
+        # TODO HINT about this tool not being optimal for low memory systems
+        pass
+  
+    # Checkpoint parameters
+    s['checkpoint_segments'] = {'web':8, 'oltp':16, 'dw':64,
+                                'mixed':16, 'desktop':3}[dbType]
+  
+    s['checkpoint_completion_target'] = {'web':0.7, 'oltp':0.9, 'dw':0.9,
+                                         'mixed':0.9, 'desktop':0.5}[dbType]
+  
+    s['wal_buffers'] = 512 * s['checkpoint_segments']
+  
+    # Paritioning and statistics
+    s['constraint_exclusion'] = {'web':'off', 'oltp':'off', 'dw':'on', 
+                                 'mixed':'on', 'desktop':'off'}[dbType]
+  
+    s['default_statistics_target'] = {'web':10, 'oltp':10, 'dw':100, 
+                                      'mixed':50, 'desktop':10}[dbType]
+  
+    for key in s.keys():
+        value = s[key]
+        # TODO Make this logic part of the config class, so this
+        # function doesn't need to be passed settings
+        if settings.memory_unit(key):
+            value = binaryround(s[key])
+        # TODO Add show method to config class for similar reasons
+        config.updateSetting(key, settings.show(key, value))
 
-  config.writeConfigFile(outputFile)
+if __name__ == '__main__':
+    options, args = ReadOptions() 
+    
+    configFile = options.inputConfig
+    if configFile is None:
+        print >> sys.stderr,"Can't do anything without an input config file; try --help"
+        sys.exit(1)
+        # TODO Show usage here
+      
+    config = PGConfigFile(configFile)
+  
+    if options.debug == True:  
+        config.debugPrintInput()
+        print
+        config.debugPrintSettings()
+  
+    if options.settings_dir is None:
+        options.settings_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+  
+    settings = pg_settings(options.settings_dir)
+    config.storeSettings(settings)
+  
+    wizardTune(config, options, settings)
+    
+    outputFileName = options.outputConfig
+    if outputFileName is None:  
+        outputFile = sys.stdout
+    else:
+        outputFile = open(outputFileName, 'w')
+  
+    config.writeConfigFile(outputFile)
