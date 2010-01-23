@@ -44,7 +44,7 @@ except:
     pass
 
 
-# contants
+# CONSTANTS
 KB_PER_MB = 1024
 KB_PER_GB = KB_PER_MB * 1024
 
@@ -81,7 +81,6 @@ class PGConfigLine(object):
       raw : string  This is the actual value 
       delimiter (expectations are '' and "")
     """
-
     def __init__(self, line, num=0):
         self.original_line = line
         self.line_number = num
@@ -94,11 +93,21 @@ class PGConfigLine(object):
         self.readable = None
 
     def process_line(self):
+        """
+        >>> line = PGConfigLine('checkpoint_completion_target = 0.9 # pgtune')
+        >>> line.process_line()
+        >>> line.comment_section
+        '# pgtune'
+        >>> line.name
+        'checkpoint_completion_target'
+        >>> line.readable
+        '0.9'
+        """
         line = self.original_line
         comment_index = line.find('#')
-        if comment_index >= 0:      
-            line = line[0:comment_index]
-            self.comment_section = line[comment_index:]
+        if comment_index >= 0:
+            line = self.original_line[0:comment_index]
+            self.comment_section = self.original_line[comment_index:]
     
         line = line.strip()
         if line == "":
@@ -121,7 +130,8 @@ class PGConfigLine(object):
     
         self.readable = value
 
-    # Implement a Java-ish interface for this class that renames 
+    # Implement a Java-ish interface for this class that renames
+    # should use a python-ish property instead
     def value(self):
         return self.readable
 
@@ -155,7 +165,6 @@ class PGConfigFile(object):
         self.settings = None
 
     def read_config_file(self):
-        
         for i, line in enumerate(open(self.filename)):
             line = line.rstrip('\n')
             line_num = i + 1
@@ -169,34 +178,43 @@ class PGConfigFile(object):
                 # we should throw and error here suggesting that be corrected
                 self.param2line[config_line.name] = config_line
     
-    # Much of this class will only operate with a settings database.
-    # The only reason that isn't required by the constructor itself
-    # is that making it a second step introduces the possibility of
-    # detecting which version someone is running, based on what
-    # settings do and don't exist in their postgresql.conf
+
     def store_settings(self, settings):
+        """
+        Much of this class will only operate with a settings database.
+        The only reason that isn't required by the constructor itself
+        is that making it a second step introduces the possibility of
+        detecting which version someone is running, based on what
+        settings do and don't exist in their postgresql.conf
+        """
         self.settings = settings
   
-    # Get the current value, assuming the default if that parameter
-    # isn't set
     def current_value(self, name):
+        """
+        Get the current value, assuming the default if that parameter
+        isn't set
+        """
         current = self.settings.boot_val(name)
         if name in self.param2line:
             current = self.settings.parse(name, self.param2line[name].value())
         current = current.strip()
         return current
 
-    # Get any numeric value the way the server will see it, so things
-    # are always on the same scale.  Returns None if this is not a
-    # numeric value.  
-    # TODO Maybe throw an exception instead?
-    # TODO Finish this implementation for integers, floats
     def numeric_value(self, name, value):
+        """ 
+        Get any numeric value the way the server will see it, so things
+        are always on the same scale.  Returns None if this is not a
+        numeric value.  
+        TODO Maybe throw an exception instead?
+        TODO Finish this implementation for integers, floats
+        """
         return None
   
-    # TODO Check against min,max.  Clip to edge and issue hint
-    # if value is outside of server limits.
     def limit_checked(self, name, value):
+        """
+        TODO Check against min,max.  Clip to edge and issue hint
+        if value is outside of server limits.
+        """
         return None
 
     def update_setting(self, name, value):
@@ -359,11 +377,21 @@ class PGSettings(object):
         # print >> sys.stderr,"Showing",name,"with value",value,"gives",formatted
         return formatted
 
-    # Parse an integer value into its internal form.  The main difficulty
-    # here is that if that integer is a memory unit, you need to be aware
-    # of what unit it is specified in.  1kB and 8kB pages are two popular ones
-    # and that is reflected in memory_divisor
     def parse_int(self, name, value):
+        """
+        Parse an integer value into its internal form.  The main
+        difficulty here is that if that integer is a memory unit, you
+        need to be aware of what unit it is specified in.  1kB and 8kB
+        pages are two popular ones and that is reflected in
+        memory_divisor
+
+        >>> ps = PGSettings('.')
+        >>> ps.read_config_file()
+        >>> ps.parse_int('max_connections', '10')
+        10
+        >>> ps.parse_int('shared_buffers', '960MB')
+        122880
+        """
         if self.memory_unit(name):
             if value.endswith('kB'):
                 internal = int(value.rstrip('kB'))
@@ -382,22 +410,31 @@ class PGSettings(object):
         return internal
   
     def parse(self, name, value):
-        # Return a string representing the internal value this setting would
-        # be parsed into.  This includes converting memory values into their
-        # internal integer representation
+        """
+        Return a string representing the internal value this setting
+        would be parsed into.  This includes converting memory values
+        into their internal integer representation.
+
+        TODO It might be helpful to eventually handle all the boolean
+        representations that the PostgreSQL GUC code understands,
+        outputting in standard form
+        """
         if self.vartype(name) == "integer":
             return str(self.parse_int(name, value))
-        # TODO It might be helpful to eventually handle all the boolean
-        # representations that the PostgreSQL GUC code understands, outputting
-        # in standard form
         return value
   
 
 
 
 def binaryround(value):
-    # Keeps the 4 most significant binary bits, truncates the rest so that
-    # SHOW will be likely to use a larger divisor
+    """
+    Keeps the 4 most significant binary bits, truncates the rest so
+    that SHOW will be likely to use a larger divisor
+    >>> binaryround(22)
+    22
+    >>> binaryround(1234567)
+    1179648
+    """
     multiplier = 1
     while value > 16:
         value = int(value / 2)
@@ -405,12 +442,13 @@ def binaryround(value):
     return multiplier * value
 
 def wizard_tune(config, options, settings):
-    # We expect the following options are passed into here:
-    #
-    # db_type:  Defaults to mixed
-    # connections:  If missing, will set based on db_type
-    # totalMemory:  If missing, will detect
-  
+    """
+    We expect the following options are passed into here:
+    
+    db_type:  Defaults to mixed
+    connections:  If missing, will set based on db_type
+    totalMemory:  If missing, will detect
+    """
     db_type = options.db_type.lower()
   
     # Save all settings to be updated as (setting,value) dictionary values
@@ -518,7 +556,7 @@ def read_options(program_args):
   
     parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
                       help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
-
+    parser.add_option('--doctest', help='run doctests', action='store_true')
     options, args = parser.parse_args(program_args)
     
     if options.debug == True:
@@ -529,7 +567,12 @@ def read_options(program_args):
 
 def main(program_args):
     options, args, parser = read_options(program_args) 
-    
+
+    if options.doctest:
+        import doctest
+        doctest.testmod()
+        return(0)
+      
     configFile = options.input_config
     if configFile is None:
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
