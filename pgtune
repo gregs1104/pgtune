@@ -135,46 +135,45 @@ class PGConfigFile(object):
   
     There are two main structures here:
   
-    configFile[]:  Array of PGConfigLine entries for each line in the file
-    settingLookup:  Dictionary mapping parameter names to the line that set them
+    config_lines[]:  Array of PGConfigLine entries for each line in the file
+    param2line:  Dictionary mapping parameter names to the line that set them
     """
   
     def __init__(self, filename):
-        self.readConfigFile(filename)
-
-    def readConfigFile(self, filename):
         self.filename = filename
-        self.settingsLookup = {}
-        self.configFile = []
-    
-        lineNum = 0
-        for line in open(filename):
+        self.param2line = {}
+        self.config_lines = []
+        self.settings = None
+
+    def read_config_file(self):
+        
+        for i, line in enumerate(open(self.filename)):
             line = line.rstrip('\n')
-            lineNum = lineNum + 1
+            line_num = i + 1
     
-            configLine = PGConfigLine(line, lineNum)
-            configLine.process_line()
-            self.configFile.append(configLine)
+            config_line = PGConfigLine(line, line_num)
+            config_line.process_line()
+            self.config_lines.append(config_line)
     
-            if configLine.is_setting():
+            if config_line.is_setting():
                 # TODO Check if the line is already in the file, in which case
                 # we should throw and error here suggesting that be corrected
-                self.settingsLookup[configLine.name] = configLine
+                self.param2line[config_line.name] = config_line
     
     # Much of this class will only operate with a settings database.
-    # The only reason that isn't required by the constructuor itself
+    # The only reason that isn't required by the constructor itself
     # is that making it a second step introduces the possibility of
     # detecting which version someone is running, based on what
     # settings do and don't exist in their postgresql.conf
-    def storeSettings(self, settingsInstance):
-        settings = settingsInstance
+    def store_settings(self, settings):
+        self.settings = settings
   
     # Get the current value, assuming the default if that parameter
     # isn't set
-    def currentValue(self, name):
-        current = settings.boot_val(name)
-        if self.settingsLookup.has_key(name):
-            current = settings.parse(name, self.settingsLookup[name].value())
+    def current_value(self, name):
+        current = self.settings.boot_val(name)
+        if name in self.param2line:
+            current = self.settings.parse(name, self.param2line[name].value())
         current = current.strip()
         return current
 
@@ -183,20 +182,20 @@ class PGConfigFile(object):
     # numeric value.  
     # TODO Maybe throw an exception instead?
     # TODO Finish this implementation for integers, floats
-    def numericValue(self, name, value):
+    def numeric_value(self, name, value):
         return None
   
     # TODO Check against min,max.  Clip to edge and issue hint
     # if value is outside of server limits.
-    def limitChecked(self, name, value):
+    def limit_checked(self, name, value):
         return None
 
-    def updateSetting(self, name, newValue):
-        current = self.currentValue(name)
-        newValue = str(newValue).strip()
+    def update_setting(self, name, value):
+        current = self.current_value(name)
+        value = str(value).strip()
     
         # If it matches what's currently in the file, don't do anything
-        if current == newValue:
+        if current == value:
             return
     
         # TODO Throw a HINT if you're reducing a value.  This only makes
@@ -207,45 +206,45 @@ class PGConfigFile(object):
         #print name,"min=",settings.min_val(name),"max=",settings.max_val(name) 
     
         # Construct a new settings line
-        newLineText = str(name) + " = " + str(newValue)+ \
-                      " # pgtune wizard " + str(datetime.date.today())
-        newLine = PGConfigLine(newLineText)
+        text = "%s = %s # pgtune wizard %s" %(name, value, datetime.date.today())
+        new_line = PGConfigLine(text)
+        new_line.process_line()
     
         # Comment out any line already setting this value
-        if self.settingsLookup.has_key(name):
-            oldLine = self.settingsLookup[name]
-            oldLineNum = oldLine.line_number
-            commentedLineText = "# " + oldLine.original_line
-            commentedLine = PGConfigLine(commentedLineText, oldLineNum)
+        if name in self.param2line:
+            old_line = self.param2line[name]
+            old_line_num = old_line.line_number
+            commentedLineText = "# %s" % old_line.original_line
+            commentedLine = PGConfigLine(commentedLineText, old_line_num)
+            commentedLine.process_line()
             # Subtract one here to adjust for zero offset of array.
             # Any future change that adds lines in-place will need to do
             # something smarter here, because the line numbers won't match 
             # the array indexes anymore
-            self.configFile[oldLineNum - 1] = commentedLine
+            self.config_lines[old_line_num - 1] = commentedLine
         
-        self.configFile.append(newLine)
-        self.settingsLookup[name] = newLine
+        self.config_lines.append(new_line)
+        self.param2line[name] = new_line
     
-    def updateIfLarger(self, name, newValue):
-        if self.settingsLookup.has_key(name):
+    def update_if_larger(self, name, value):
+        if name in self.param2line:
             # TODO This comparison needs all the values converted to numeric form
             # and converted to the same scale before it will work
-            if (True):  #newValue > self.settingsLookup[name].value():
-                self.updateSetting(name, newValue)
+            if (True):  #newValue > self.param2line[name].value():
+                self.update_setting(name, value)
     
-    def writeConfigFile(self, fileHandle):
-        for l in self.configFile:
-            fileHandle.write(l.original_line + "\n")
+    def write(self, fout):
+        fout.writelines(['%s\n' % line.original_line for line in self.config_lines])
 
-    def debugPrintInput(self):
+    def debug_print_input(self):
         print "Original file:"
-        for l in self.configFile:
+        for l in self.config_lines:
             print str(l)
 
-    def debugPrintSettings(self):
+    def debug_print_settings(self):
         print "Settings listing:"
-        for k in self.settingsLookup.keys():
-            print k , '=' , self.settingsLookup[k].value()
+        for k, line in self.param2line.items():
+            print '%s = %s' %(k, line.value())
 
 
 class pg_settings(object):
@@ -528,7 +527,7 @@ def wizardTune(config, options, settings):
         if settings.memory_unit(key):
             value = binaryround(s[key])
         # TODO Add show method to config class for similar reasons
-        config.updateSetting(key, settings.show(key, value))
+        config.update_setting(key, settings.show(key, value))
 
 
 def main(program_args):
@@ -537,11 +536,12 @@ def main(program_args):
     configFile = options.inputConfig
     if configFile is None:
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
-        parser.show_usage()
+        parser.print_help()
         return(1)
 
       
     config = PGConfigFile(configFile)
+    config.read_config_file()
   
     if options.debug == True:  
         config.debugPrintInput()
@@ -552,7 +552,7 @@ def main(program_args):
         options.settings_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
   
     settings = pg_settings(options.settings_dir)
-    config.storeSettings(settings)
+    config.store_settings(settings)
   
     wizardTune(config, options, settings)
     
@@ -562,7 +562,7 @@ def main(program_args):
     else:
         outputFile = open(outputFileName, 'w')
   
-    config.writeConfigFile(outputFile)
+    config.write(outputFile)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
