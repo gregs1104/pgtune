@@ -43,6 +43,15 @@ except:
     # see http://groups.google.com/groups?hl=en&lr=&client=firefox-a&threadm=b%25B_8.3255%24Dj6.2964%40nwrddc04.gnilink.net&rnum=2&prev=/groups%3Fhl%3Den%26lr%3D%26client%3Dfirefox-a%26q%3DHARDWARE%255CRESOURCEMAP%255CSystem%2BResources%255CPhysical%2BMemory%26btnG%3DSearch
     pass
 
+
+# contants
+KB_PER_MB = 1024
+KB_PER_GB = KB_PER_MB * 1024
+
+KB = 1024
+MB = 1024 * KB
+GB = 1024 * MB
+
 def total_mem():
     try:
         if platform.system() == "Windows":
@@ -247,7 +256,7 @@ class PGConfigFile(object):
             print '%s = %s' %(k, line.value())
 
 
-class pg_settings(object):
+class PGSettings(object):
     """
     Read and index a delimited text dump of a typical pg_settings dump for 
     the appropriate architecture--maximum values are different for some
@@ -264,21 +273,19 @@ class pg_settings(object):
     """
 
     def __init__(self, settings_dir):
-        self.KB_PER_MB = 1024
-        self.KB_PER_GB = 1024 * 1024
-        self.readConfigFile(settings_dir)
-
-    def readConfigFile(self, settings_dir):
-        self.settingsLookup = {}
+        self.param2dict = {}
         self.memoryUnits = {}
-    
+        self.settings_dir = settings_dir
+
+
+    def read_config_file(self):
         platformBits = 32
         if platform.architecture()[0] == "64bit":
             platformBits = 64
             
         # TODO Support handling versions other than 8.4
         # TODO Allow passing in platform bit size
-        settingDumpFile = os.path.join(settings_dir, "pg_settings-8.4-" + str(platformBits))
+        settingDumpFile = os.path.join(self.settings_dir, "pg_settings-8.4-%s" % platformBits)
         settingColumns = ["name", "setting", "unit", "category", "short_desc",
                           "extra_desc", "context", "vartype", "min_val", "max_val", "enumvals",
                           "boot_val"]
@@ -303,39 +310,36 @@ class pg_settings(object):
             else:
                 d['memory_divisor'] = None
       
-            self.settingsLookup[d['name']] = d
+            self.param2dict[d['name']] = d
     
     def debugPrintSettings(self):
-        for key in self.settingsLookup.keys():
-            print "key=", key, " value=", self.settingsLookup[key]
+        for key in self.param2dict.keys():
+            print "key=", key, " value=", self.param2dict[key]
 
     def min_val(self, setting):
-        return (self.settingsLookup[setting])['min_val']
+        return (self.param2dict[setting])['min_val']
 
     def max_val(self, setting):
-        return (self.settingsLookup[setting])['max_val']
+        return (self.param2dict[setting])['max_val']
 
     def boot_val(self, setting):
-        return (self.settingsLookup[setting])['boot_val']
+        return (self.param2dict[setting])['boot_val']
   
     def unit(self, setting):
-        return (self.settingsLookup[setting])['unit']
+        return (self.param2dict[setting])['unit']
   
     def vartype(self, setting):
-        return (self.settingsLookup[setting])['vartype']
+        return (self.param2dict[setting])['vartype']
   
     def memory_unit(self, setting):
-        return (self.settingsLookup[setting])['memory_unit']
+        return (self.param2dict[setting])['memory_unit']
   
     def memory_divisor(self, setting):
-        return (self.settingsLookup[setting])['memory_divisor']
-  
-    def vartype(self, setting):
-        return (self.settingsLookup[setting])['vartype']
-  
+        return (self.param2dict[setting])['memory_divisor']
+    
     def show(self, name, value):
         formatted = value
-        s = self.settingsLookup[name]
+        s = self.param2dict[name]
     
         if s['memory_unit']:
             # Use the same logic as the GUC code that implements "SHOW".  This uses
@@ -343,11 +347,11 @@ class pg_settings(object):
             # with that value.  Therefore, if using this to output newly assigned
             # values, that value needs to be rounded appropriately if you want
             # it to show up as an even number of MB or GB
-            if (value % self.KB_PER_GB == 0):
-                value = value / self.KB_PER_GB
+            if (value % KB_PER_GB == 0):
+                value = value / KB_PER_GB
                 unit = "GB"
-            elif (value % self.KB_PER_MB == 0):
-                value = value / self.KB_PER_MB
+            elif (value % KB_PER_MB == 0):
+                value = value / KB_PER_MB
                 unit = "MB"
             else:
                 unit = "kB"
@@ -361,18 +365,16 @@ class pg_settings(object):
     # of what unit it is specified in.  1kB and 8kB pages are two popular ones
     # and that is reflected in memory_divisor
     def parse_int(self, name, value):
-        s = self.settingsLookup[name]
-    
         if self.memory_unit(name):
             if value.endswith('kB'):
                 internal = int(value.rstrip('kB'))
                 internal = internal / self.memory_divisor(name)
             elif value.endswith('MB'):
                 internal = int(value.rstrip('MB'))
-                internal = internal * self.KB_PER_MB / self.memory_divisor(name)
+                internal = internal * KB_PER_MB / self.memory_divisor(name)
             elif value.endswith('GB'):
                 internal = int(value.rstrip('GB'))
-                internal = internal * self.KB_PER_GB / self.memory_divisor(name)
+                internal = internal * KB_PER_GB / self.memory_divisor(name)
             else:
                 internal = int(value)        
         else:        
@@ -418,7 +420,7 @@ def ReadOptions(program_args):
   
     parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
                       help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
-  
+
     options, args = parser.parse_args(program_args)
     
     if options.debug == True:
@@ -467,18 +469,14 @@ def wizardTune(config, options, settings):
     if total_memory is None:
         print "Error:  total memory not specified and unable to detect"
         sys.exit(1)
-  
-    kb = 1024
-    mb = 1024 * kb
-    gb = 1024 * mb
-  
+    
     # Memory allocation
     # Extract some values just to make the code below more compact
     # The base unit for memory types is the kB, so scale system memory to that
-    mem = int(total_memory) / kb
+    mem = int(total_memory) / KB
     con = int(s['max_connections'])
   
-    if total_memory >= (256 * mb):
+    if total_memory >= (256 * MB):
         if False:  # platform.system()=="Windows"
             # TODO Adjust shared_buffers for Windows
             pass
@@ -497,8 +495,8 @@ def wizardTune(config, options, settings):
         
         # Cap maintenence RAM at 1GB on servers with lots of memory
         # (Remember that the setting is in terms of kB here)
-        if s['maintenance_work_mem'] > (1 * mb):
-            s['maintenance_work_mem'] = 1 * mb
+        if s['maintenance_work_mem'] > (1 * MB):
+            s['maintenance_work_mem'] = 1 * MB
   
     else:
         # TODO HINT about this tool not being optimal for low memory systems
@@ -544,14 +542,15 @@ def main(program_args):
     config.read_config_file()
   
     if options.debug == True:  
-        config.debugPrintInput()
+        config.debug_print_input()
         print
-        config.debugPrintSettings()
+        config.debug_print_settings()
   
     if options.settings_dir is None:
         options.settings_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
   
-    settings = pg_settings(options.settings_dir)
+    settings = PGSettings(options.settings_dir)
+    settings.read_config_file()
     config.store_settings(settings)
   
     wizardTune(config, options, settings)
