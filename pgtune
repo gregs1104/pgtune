@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 pgtune
 
@@ -274,22 +274,21 @@ class PGSettings(object):
 
     def __init__(self, settings_dir):
         self.param2dict = {}
-        self.memoryUnits = {}
         self.settings_dir = settings_dir
 
 
     def read_config_file(self):
-        platformBits = 32
+        platform_bits = 32
         if platform.architecture()[0] == "64bit":
-            platformBits = 64
+            platform_bits = 64
             
         # TODO Support handling versions other than 8.4
         # TODO Allow passing in platform bit size
-        settingDumpFile = os.path.join(self.settings_dir, "pg_settings-8.4-%s" % platformBits)
-        settingColumns = ["name", "setting", "unit", "category", "short_desc",
+        setting_dump_file = os.path.join(self.settings_dir, "pg_settings-8.4-%s" % platform_bits)
+        setting_columns = ["name", "setting", "unit", "category", "short_desc",
                           "extra_desc", "context", "vartype", "min_val", "max_val", "enumvals",
                           "boot_val"]
-        reader = csv.DictReader(open(settingDumpFile), settingColumns, delimiter="\t")
+        reader = csv.DictReader(open(setting_dump_file), setting_columns, delimiter="\t")
         for d in reader:
             # Convert nulls into blanks
             for key in d.keys():
@@ -312,7 +311,7 @@ class PGSettings(object):
       
             self.param2dict[d['name']] = d
     
-    def debugPrintSettings(self):
+    def debug_print_settings(self):
         for key in self.param2dict.keys():
             print "key=", key, " value=", self.param2dict[key]
 
@@ -393,41 +392,8 @@ class PGSettings(object):
         # in standard form
         return value
   
-# Beginning of routines for this program
 
-def ReadOptions(program_args):
-    parser = optparse.OptionParser(usage="usage: %prog [options]",
-                                   version="1.0",
-                                   conflict_handler="resolve")
-      
-    parser.add_option('-i', '--input-config', dest="inputConfig", default=None,
-                      help="Input configuration file")
-  
-    parser.add_option('-o', '--output-config', dest="outputConfig", default=None, 
-                      help="Output configuration file, defaults to standard output")
-    
-    parser.add_option('-M', '--memory', dest="total_memory", default=None, 
-                      help="Total system memory, will attempt to detect if unspecified")
-  
-    parser.add_option('-T', '--type', dest="dbType", default="Mixed", 
-                      help="Database type, defaults to Mixed, valid options are DW, OLTP, Web, Mixed, Desktop")
-  
-    parser.add_option('-c', '--connections', dest="connections", default=None, 
-                      help="Maximum number of expected connections, default depends on database type")
-  
-    parser.add_option('-D', '--debug', action="store_true", dest="debug",
-                      default="False", help="Enable debugging mode")
-  
-    parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
-                      help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
 
-    options, args = parser.parse_args(program_args)
-    
-    if options.debug == True:
-        print "Command line options:  ",options
-        print "Command line arguments:  ",args
-    
-    return options, args, parser
 
 def binaryround(value):
     # Keeps the 4 most significant binary bits, truncates the rest so that
@@ -438,24 +404,24 @@ def binaryround(value):
         multiplier = multiplier * 2
     return multiplier * value
 
-def wizardTune(config, options, settings):
+def wizard_tune(config, options, settings):
     # We expect the following options are passed into here:
     #
-    # dbType:  Defaults to mixed
-    # connections:  If missing, will set based on dbType
+    # db_type:  Defaults to mixed
+    # connections:  If missing, will set based on db_type
     # totalMemory:  If missing, will detect
   
-    dbType = options.dbType.lower()
+    db_type = options.db_type.lower()
   
     # Save all settings to be updated as (setting,value) dictionary values
     s = {}
     try:
-        s['max_connections'] = {'web':200, 'oltp':300, 'dw':20, 'mixed':80, 'desktop':5}[dbType]
+        s['max_connections'] = {'web':200, 'oltp':300, 'dw':20, 'mixed':80, 'desktop':5}[db_type]
     except KeyError:
-        print "Error:  unexpected setting for dbType"
+        print "Error:  unexpected setting for db_type"
         sys.exit(1)
   
-    # Now that we've screened for that, we know we've got a good dbType and
+    # Now that we've screened for that, we know we've got a good db_type and
     # don't have to wrap the rest of these settings in an try block
   
     # Allow overriding the maximum connections
@@ -482,16 +448,16 @@ def wizardTune(config, options, settings):
             pass
         else:
             s['shared_buffers'] = {'web':mem / 4, 'oltp':mem / 4, 'dw':mem / 4,
-                                   'mixed':mem / 4, 'desktop':mem / 16}[dbType]
+                                   'mixed':mem / 4, 'desktop':mem / 16}[db_type]
     
         s['effective_cache_size'] = {'web':mem * 3 / 4, 'oltp':mem * 3 / 4, 'dw':mem * 3 / 4,
-                                     'mixed':mem * 3 / 4, 'desktop':mem / 4}[dbType]
+                                     'mixed':mem * 3 / 4, 'desktop':mem / 4}[db_type]
     
         s['work_mem'] = {'web':mem / con, 'oltp':mem / con,'dw':mem / con / 2,
-                         'mixed':mem / con / 2,'desktop':mem / con / 6}[dbType]
+                         'mixed':mem / con / 2,'desktop':mem / con / 6}[db_type]
     
         s['maintenance_work_mem'] = {'web':mem / 16, 'oltp':mem / 16,'dw':mem / 8,
-                                   'mixed':mem / 16,'desktop':mem / 16}[dbType]
+                                   'mixed':mem / 16,'desktop':mem / 16}[db_type]
         
         # Cap maintenence RAM at 1GB on servers with lots of memory
         # (Remember that the setting is in terms of kB here)
@@ -504,19 +470,19 @@ def wizardTune(config, options, settings):
   
     # Checkpoint parameters
     s['checkpoint_segments'] = {'web':8, 'oltp':16, 'dw':64,
-                                'mixed':16, 'desktop':3}[dbType]
+                                'mixed':16, 'desktop':3}[db_type]
   
     s['checkpoint_completion_target'] = {'web':0.7, 'oltp':0.9, 'dw':0.9,
-                                         'mixed':0.9, 'desktop':0.5}[dbType]
+                                         'mixed':0.9, 'desktop':0.5}[db_type]
   
     s['wal_buffers'] = 512 * s['checkpoint_segments']
   
     # Paritioning and statistics
     s['constraint_exclusion'] = {'web':'off', 'oltp':'off', 'dw':'on', 
-                                 'mixed':'on', 'desktop':'off'}[dbType]
+                                 'mixed':'on', 'desktop':'off'}[db_type]
   
     s['default_statistics_target'] = {'web':10, 'oltp':10, 'dw':100, 
-                                      'mixed':50, 'desktop':10}[dbType]
+                                      'mixed':50, 'desktop':10}[db_type]
   
     for key in s.keys():
         value = s[key]
@@ -527,11 +493,44 @@ def wizardTune(config, options, settings):
         # TODO Add show method to config class for similar reasons
         config.update_setting(key, settings.show(key, value))
 
+def read_options(program_args):
+    parser = optparse.OptionParser(usage="usage: %prog [options]",
+                                   version="1.0",
+                                   conflict_handler="resolve")
+      
+    parser.add_option('-i', '--input-config', dest="input_config", default=None,
+                      help="Input configuration file")
+  
+    parser.add_option('-o', '--output-config', dest="output_config", default=None, 
+                      help="Output configuration file, defaults to standard output")
+    
+    parser.add_option('-M', '--memory', dest="total_memory", default=None, 
+                      help="Total system memory, will attempt to detect if unspecified")
+  
+    parser.add_option('-T', '--type', dest="db_type", default="Mixed", 
+                      help="Database type, defaults to Mixed, valid options are DW, OLTP, Web, Mixed, Desktop")
+  
+    parser.add_option('-c', '--connections', dest="connections", default=None, 
+                      help="Maximum number of expected connections, default depends on database type")
+  
+    parser.add_option('-D', '--debug', action="store_true", dest="debug",
+                      default="False", help="Enable debugging mode")
+  
+    parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
+                      help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
+
+    options, args = parser.parse_args(program_args)
+    
+    if options.debug == True:
+        print "Command line options:  ",options
+        print "Command line arguments:  ",args
+    
+    return options, args, parser
 
 def main(program_args):
-    options, args, parser = ReadOptions(program_args) 
+    options, args, parser = read_options(program_args) 
     
-    configFile = options.inputConfig
+    configFile = options.input_config
     if configFile is None:
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
         parser.print_help()
@@ -553,15 +552,15 @@ def main(program_args):
     settings.read_config_file()
     config.store_settings(settings)
   
-    wizardTune(config, options, settings)
+    wizard_tune(config, options, settings)
     
-    outputFileName = options.outputConfig
-    if outputFileName is None:  
-        outputFile = sys.stdout
+    output_file_name = options.output_config
+    if output_file_name is None:  
+        fout = sys.stdout
     else:
-        outputFile = open(outputFileName, 'w')
+        fout = open(output_file_name, 'w')
   
-    config.write(outputFile)
+    config.write(fout)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
