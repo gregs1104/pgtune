@@ -38,19 +38,20 @@ try:
         return mi.dwTotalPhys
 
 except:
-    # TODO Try and use MFI if we're on Python 2.4 (so no ctypes) but it's available?
-    # get from registry "HARDWARE\RESOURCEMAP\System Resources\Physical Memory"
+    # TODO For pre-2.5, and possibly replacing the above in all cases, you
+    # can grab this from the registry via _winreg (standard as of 2.0) looking
+    # at "HARDWARE\RESOURCEMAP\System Resources\Physical Memory"
     # see http://groups.google.com/groups?hl=en&lr=&client=firefox-a&threadm=b%25B_8.3255%24Dj6.2964%40nwrddc04.gnilink.net&rnum=2&prev=/groups%3Fhl%3Den%26lr%3D%26client%3Dfirefox-a%26q%3DHARDWARE%255CRESOURCEMAP%255CSystem%2BResources%255CPhysical%2BMemory%26btnG%3DSearch
     pass
 
 
-# CONSTANTS
-KB_PER_MB = 1024
-KB_PER_GB = KB_PER_MB * 1024
-
+# Memory constants
 KB = 1024
 MB = 1024 * KB
 GB = 1024 * MB
+KB_PER_MB = MB / KB
+KB_PER_GB = GB / KB
+
 
 def total_mem():
     try:
@@ -65,6 +66,20 @@ def total_mem():
     except:
         return None
 
+def binaryround(value):
+    """
+    Keeps the 4 most significant binary bits, truncates the rest so
+    that SHOW will be likely to use a larger divisor
+    >>> binaryround(22)
+    22
+    >>> binaryround(1234567)
+    1179648
+    """
+    multiplier = 1
+    while value > 16:
+        value = int(value / 2)
+        multiplier = multiplier * 2
+    return multiplier * value
 
 class PGConfigLine(object):
     """
@@ -131,10 +146,9 @@ class PGConfigLine(object):
         self.readable = value
 
     # Implement a Java-ish interface for this class that renames
-    # should use a python-ish property instead
+    # Could use a python-ish property instead
     def value(self):
         return self.readable
-
 
     def is_setting(self):
         return self.sets_parameter
@@ -155,12 +169,12 @@ class PGConfigFile(object):
     There are two main structures here:
   
     config_lines[]:  Array of PGConfigLine entries for each line in the file
-    param2line:  Dictionary mapping parameter names to the line that set them
+    param_to_line:  Dictionary mapping parameter names to the line that set them
     """
   
     def __init__(self, filename):
         self.filename = filename
-        self.param2line = {}
+        self.param_to_line = {}
         self.config_lines = []
         self.settings = None
 
@@ -176,8 +190,7 @@ class PGConfigFile(object):
             if config_line.is_setting():
                 # TODO Check if the line is already in the file, in which case
                 # we should throw and error here suggesting that be corrected
-                self.param2line[config_line.name] = config_line
-    
+                self.param_to_line[config_line.name] = config_line    
 
     def store_settings(self, settings):
         """
@@ -195,8 +208,8 @@ class PGConfigFile(object):
         isn't set
         """
         current = self.settings.boot_val(name)
-        if name in self.param2line:
-            current = self.settings.parse(name, self.param2line[name].value())
+        if name in self.param_to_line:
+            current = self.settings.parse(name, self.param_to_line[name].value())
         current = current.strip()
         return current
 
@@ -238,8 +251,8 @@ class PGConfigFile(object):
         new_line.process_line()
     
         # Comment out any line already setting this value
-        if name in self.param2line:
-            old_line = self.param2line[name]
+        if name in self.param_to_line:
+            old_line = self.param_to_line[name]
             old_line_num = old_line.line_number
             commentedLineText = "# %s" % old_line.original_line
             commentedLine = PGConfigLine(commentedLineText, old_line_num)
@@ -251,13 +264,13 @@ class PGConfigFile(object):
             self.config_lines[old_line_num - 1] = commentedLine
         
         self.config_lines.append(new_line)
-        self.param2line[name] = new_line
+        self.param_to_line[name] = new_line
     
     def update_if_larger(self, name, value):
-        if name in self.param2line:
+        if name in self.param_to_line:
             # TODO This comparison needs all the values converted to numeric form
             # and converted to the same scale before it will work
-            if (True):  #newValue > self.param2line[name].value():
+            if (True):  #newValue > self.param_to_line[name].value():
                 self.update_setting(name, value)
     
     def write(self, fout):
@@ -270,30 +283,30 @@ class PGConfigFile(object):
 
     def debug_print_settings(self):
         print "Settings listing:"
-        for k, line in self.param2line.items():
+        for k, line in self.param_to_line.items():
             print '%s = %s' %(k, line.value())
 
 
 class PGSettings(object):
     """
     Read and index a delimited text dump of a typical pg_settings dump for 
-    the appropriate architecture--maximum values are different for some
+    the appropriate architecture.  Maximum values are different for some
     settings on 32 and 64 bit platforms.
     
     An appropriately formatted dump can be generated with:
   
     psql postgres -c "COPY (SELECT name,setting,unit,category,short_desc,
-    extra_desc,context,vartype,min_val,max_val,enumvals,boot_val 
-    FROM pg_settings WHERE NOT source='override') TO '/<path>/pg_settings-<ver>-<bits>'"
+    extra_desc,context,vartype,min_val,max_val,enumvals,boot_val
+    FROM pg_settings WHERE NOT source='override')
+    TO '/<path>/pg_settings-<ver>-<bits>'"
   
     Note that some of these columns (such as boot_val) are only available 
     starting in PostgreSQL 8.4
     """
 
     def __init__(self, settings_dir):
-        self.param2dict = {}
+        self.param_to_dict = {}
         self.settings_dir = settings_dir
-
 
     def read_config_file(self):
         platform_bits = 32
@@ -327,36 +340,36 @@ class PGSettings(object):
             else:
                 d['memory_divisor'] = None
       
-            self.param2dict[d['name']] = d
+            self.param_to_dict[d['name']] = d
     
     def debug_print_settings(self):
-        for key in self.param2dict.keys():
-            print "key=", key, " value=", self.param2dict[key]
+        for key in self.param_to_dict.keys():
+            print "key=", key, " value=", self.param_to_dict[key]
 
     def min_val(self, setting):
-        return (self.param2dict[setting])['min_val']
+        return (self.param_to_dict[setting])['min_val']
 
     def max_val(self, setting):
-        return (self.param2dict[setting])['max_val']
+        return (self.param_to_dict[setting])['max_val']
 
     def boot_val(self, setting):
-        return (self.param2dict[setting])['boot_val']
+        return (self.param_to_dict[setting])['boot_val']
   
     def unit(self, setting):
-        return (self.param2dict[setting])['unit']
+        return (self.param_to_dict[setting])['unit']
   
     def vartype(self, setting):
-        return (self.param2dict[setting])['vartype']
+        return (self.param_to_dict[setting])['vartype']
   
     def memory_unit(self, setting):
-        return (self.param2dict[setting])['memory_unit']
+        return (self.param_to_dict[setting])['memory_unit']
   
     def memory_divisor(self, setting):
-        return (self.param2dict[setting])['memory_divisor']
+        return (self.param_to_dict[setting])['memory_divisor']
     
     def show(self, name, value):
         formatted = value
-        s = self.param2dict[name]
+        s = self.param_to_dict[name]
     
         if s['memory_unit']:
             # Use the same logic as the GUC code that implements "SHOW".  This uses
@@ -422,25 +435,8 @@ class PGSettings(object):
         if self.vartype(name) == "integer":
             return str(self.parse_int(name, value))
         return value
+
   
-
-
-
-def binaryround(value):
-    """
-    Keeps the 4 most significant binary bits, truncates the rest so
-    that SHOW will be likely to use a larger divisor
-    >>> binaryround(22)
-    22
-    >>> binaryround(1234567)
-    1179648
-    """
-    multiplier = 1
-    while value > 16:
-        value = int(value / 2)
-        multiplier = multiplier * 2
-    return multiplier * value
-
 def wizard_tune(config, options, settings):
     """
     We expect the following options are passed into here:
@@ -520,8 +516,7 @@ def wizard_tune(config, options, settings):
                                  'mixed':'on', 'desktop':'off'}[db_type]
   
     s['default_statistics_target'] = {'web':10, 'oltp':10, 'dw':100, 
-                                      'mixed':50, 'desktop':10}[db_type]
-  
+                                      'mixed':50, 'desktop':10}[db_type]  
     for key in s.keys():
         value = s[key]
         # TODO Make this logic part of the config class, so this
@@ -530,6 +525,7 @@ def wizard_tune(config, options, settings):
             value = binaryround(s[key])
         # TODO Add show method to config class for similar reasons
         config.update_setting(key, settings.show(key, value))
+
 
 def read_options(program_args):
     parser = optparse.OptionParser(usage="usage: %prog [options]",
@@ -556,6 +552,7 @@ def read_options(program_args):
   
     parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
                       help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
+
     parser.add_option('--doctest', help='run doctests', action='store_true')
     options, args = parser.parse_args(program_args)
     
@@ -564,6 +561,7 @@ def read_options(program_args):
         print "Command line arguments:  ",args
     
     return options, args, parser
+
 
 def main(program_args):
     options, args, parser = read_options(program_args) 
@@ -578,7 +576,6 @@ def main(program_args):
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
         parser.print_help()
         return(1)
-
       
     config = PGConfigFile(configFile)
     config.read_config_file()

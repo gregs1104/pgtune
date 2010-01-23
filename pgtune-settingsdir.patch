@@ -1,11 +1,21 @@
---- pgtune.old
-+++ pgtune
-@@ -414,7 +414,7 @@ def ReadOptions():
-   parser.add_option('-D','--debug',action="store_true",dest="debug",
-     default="False",help="Enable debugging mode")
- 
--  parser.add_option('-S','--settings',dest="settings_dir",default=None, 
-+  parser.add_option('-S','--settings',dest="settings_dir",default="/usr/share/pgtune", 
-     help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
- 
-   options,args=parser.parse_args()
+*** pgtune.old	2010-01-23 03:16:46.000000000 -0500
+--- pgtune	2010-01-23 03:17:06.000000000 -0500
+***************
+*** 550,557 ****
+      parser.add_option('-D', '--debug', action="store_true", dest="debug",
+                        default="False", help="Enable debugging mode")
+    
+!     parser.add_option('-S', '--settings', dest="settings_dir", default=None, 
+!                       help="Directory where settings data files are located at.  Defaults to the directory where the script is being run from")
+  
+      parser.add_option('--doctest', help='run doctests', action='store_true')
+      options, args = parser.parse_args(program_args)
+--- 550,557 ----
+      parser.add_option('-D', '--debug', action="store_true", dest="debug",
+                        default="False", help="Enable debugging mode")
+    
+!     parser.add_option('-S', '--settings', dest="settings_dir", default="/usr/share/pgtune", 
+!                       help="Directory where settings data files are located at.  Defaults to /usr/share/pgtune")
+  
+      parser.add_option('--doctest', help='run doctests', action='store_true')
+      options, args = parser.parse_args(program_args)
