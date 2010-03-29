@@ -75,7 +75,7 @@ page for pgtune listed below.
 Documentation
 =============
 
-The documentation README for pgtune is in ReST markup.  Tools
+The documentation README.rst for pgtune is in ReST markup.  Tools
 that operate on ReST can be used to make versions of it formatted
 for other purposes, such as rst2html to make a HTML version.
 
