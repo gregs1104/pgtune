@@ -3,6 +3,8 @@
 pgtune
 
 Sample usage shown by running with "--help"
+
+Copyright (c) 2009-2011, Gregory Smith
 """
 
 import sys
@@ -230,6 +232,17 @@ class PGConfigFile(object):
         """
         return None
 
+    def identify_session(self,text):
+        """
+        TODO Add a header to the values that are about to be changed
+        saying what program was responsible.  The assumption is that
+        these aren't really config lines, just text, and therefore
+        there is no reason to references them in the settings hash.
+        """
+        new_line = PGConfigLine(text)
+        new_line.process_line()
+        self.config_lines.append(new_line)
+
     def update_setting(self, name, value):
         current = self.current_value(name)
         value = str(value).strip()
@@ -245,11 +258,10 @@ class PGConfigFile(object):
         # TODO Clamp the new value against the min and max for this setting
         #print name,"min=",settings.min_val(name),"max=",settings.max_val(name) 
     
-        # Construct a new settings line
-        text = "%s = %s # pgtune wizard %s" %(name, value, datetime.date.today())
+        text = "%s = %s" %(name, value)
         new_line = PGConfigLine(text)
         new_line.process_line()
-    
+            
         # Comment out any line already setting this value
         if name in self.param_to_line:
             old_line = self.param_to_line[name]
@@ -517,6 +529,10 @@ def wizard_tune(config, options, settings):
   
     s['default_statistics_target'] = {'web':10, 'oltp':10, 'dw':100, 
                                       'mixed':50, 'desktop':10}[db_type]  
+
+    text = "#\n# pgtune wizard run at %s" % (datetime.date.today())
+    config.identify_session(text)
+    config.identify_session("# Based on %s KB RAM in the server\n#\n" % mem )
     for key in s.keys():
         value = s[key]
         # TODO Make this logic part of the config class, so this

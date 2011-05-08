@@ -96,7 +96,7 @@ License
 
 pgtune is licensed under a standard 3-clause BSD license.
 
-Copyright (c) 2010, Gregory Smith
+Copyright (c) 2009-2011, Gregory Smith
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without 
