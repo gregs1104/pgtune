@@ -156,7 +156,7 @@ class PGConfigLine(object):
         return self.sets_parameter
 
     def __str__(self):
-        result = ['%s sets?=%s' %(self.line_number, self.sets_parameter)]
+        result = ['%s sets=%s' %(self.line_number, self.sets_parameter)]
         if self.sets_parameter:
             result.append('%s=%s' %(self.name, self.value))
             # TODO:  Include comment_section, readable,raw, delimiter
@@ -234,10 +234,10 @@ class PGConfigFile(object):
 
     def identify_session(self,text):
         """
-        TODO Add a header to the values that are about to be changed
-        saying what program was responsible.  The assumption is that
-        these aren't really config lines, just text, and therefore
-        there is no reason to references them in the settings hash.
+        Add a header to the values that are about to be changed
+        saying what program was responsible.  The (unchecked) requirement
+        is that these aren't really config lines, just text, and therefore
+        there is no reason to reference them in the settings hash.
         """
         new_line = PGConfigLine(text)
         new_line.process_line()
@@ -524,15 +524,25 @@ def wizard_tune(config, options, settings):
     s['wal_buffers'] = 512 * s['checkpoint_segments']
   
     # Paritioning and statistics
-    s['constraint_exclusion'] = {'web':'off', 'oltp':'off', 'dw':'on', 
-                                 'mixed':'on', 'desktop':'off'}[db_type]
+    if False:
+        # TODO This code only made sense for PostgreSQL 8.3 and earlier.
+        # Until that version can be singled out, the default for
+        # constraint_exclusion ('partition') starting in 8.4 is the right
+        # setting for every system type.
+        s['constraint_exclusion'] = {'web':'off', 'oltp':'off', 'dw':'on', 
+                                     'mixed':'on', 'desktop':'off'}[db_type]
   
-    s['default_statistics_target'] = {'web':10, 'oltp':10, 'dw':100, 
-                                      'mixed':50, 'desktop':10}[db_type]  
+    s['default_statistics_target'] = {'web':100, 'oltp':100, 'dw':500, 
+                                      'mixed':100, 'desktop':100}[db_type]
 
-    text = "#\n# pgtune wizard run at %s" % (datetime.date.today())
-    config.identify_session(text)
-    config.identify_session("# Based on %s KB RAM in the server\n#\n" % mem )
+    # Header to identify when the program ran, before any new settings
+    config.identify_session("#------------------------------------------------------------------------------")
+    config.identify_session("# pgtune wizard run on %s" % (datetime.date.today()))
+    config.identify_session("# Based on %s KB RAM in the server" % mem )
+    config.identify_session("#------------------------------------------------------------------------------")
+    config.identify_session("")
+    
+    # Write the new settings out
     for key in s.keys():
         value = s[key]
         # TODO Make this logic part of the config class, so this
@@ -545,7 +555,7 @@ def wizard_tune(config, options, settings):
 
 def read_options(program_args):
     parser = optparse.OptionParser(usage="usage: %prog [options]",
-                                   version="1.0",
+                                   version="0.9.4b",
                                    conflict_handler="resolve")
       
     parser.add_option('-i', '--input-config', dest="input_config", default=None,
@@ -571,6 +581,10 @@ def read_options(program_args):
 
     parser.add_option('--doctest', help='run doctests', action='store_true')
     options, args = parser.parse_args(program_args)
+
+    # If a single regular parameter is passed, assume it's the input file    
+    if options.input_config is None and len(args)>1:
+        options.input_config=args[1]
     
     if options.debug == True:
         print "Command line options:  ",options
