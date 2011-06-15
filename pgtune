@@ -565,10 +565,10 @@ def read_options(program_args):
                       help="Output configuration file, defaults to standard output")
     
     parser.add_option('-M', '--memory', dest="total_memory", default=None, 
-                      help="Total system memory, will attempt to detect if unspecified")
+                      help="Total system memory, in bytes.  Will attempt to detect if unspecified")
   
     parser.add_option('-T', '--type', dest="db_type", default="Mixed", 
-                      help="Database type, defaults to Mixed, valid options are DW, OLTP, Web, Mixed, Desktop")
+                      help="Database type, defaults to Mixed.  Valid options are DW, OLTP, Web, Mixed, Desktop")
   
     parser.add_option('-c', '--connections', dest="connections", default=None, 
                       help="Maximum number of expected connections, default depends on database type")
