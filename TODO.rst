@@ -25,11 +25,12 @@ Limits on parameters
 
 * Limit shared_buffers on Windows to 512MB
 * Limit shared_buffers on all platforms to 8GB
-* Limit wal_buffers to 16MB
+* Limit wal_buffers to 16MB, default to 2% of RAM.
 * Limit work_mem, maintenance_work_mem to 2GB (server max)
 * Warn when total RAM <256MB (stub)
 * Update 8.4 settings files, default_statistics_target should be 100
 * Add 9.0 32-bit settings file
+* Add 9.1, 9.2, 9.3 settings files
 
 Model Improvements
 ------------------
@@ -65,12 +66,6 @@ Platform specific details
 * Allow overriding the OS used when generating sysctl output
 * Suggest size to reserve for application
 * Look for postgresql.conf file using PGDATA
-
-* New settings to tune
-
-  * Warning about listen_addresses if it's not set to '*'
-
-    * Add an input parameter to allow setting it, too
 
 Documentation
 -------------
@@ -158,6 +153,13 @@ Line numbers here refer to an earlier version of the code now.
 Future version ideas
 ====================
 
+Reorganize with include files
+-----------------------------
+
+Provide a useful example of how to put the pgtune customization as something
+included by the main postgresql.conf.  Starting in 9.3, this might be done
+as a config directory instead.
+
 V2.0 features
 -------------
 
@@ -233,6 +235,10 @@ Setup common idioms
 
 Several types of postgresql.conf changes happen as common sets of
 changes that could be automated:
+
+* Warning about listen_addresses if it's not set to '*'
+
+  * Add an input parameter to allow setting it, too
 
 * Configure logging for performance monitoring
 * Adjust logging format for query analysis (pgfouine compatibility)
