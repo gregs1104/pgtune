@@ -23,9 +23,7 @@ Settings information
 Limits on parameters
 --------------------
 
-* Limit shared_buffers on Windows to 512MB
 * Limit shared_buffers on all platforms to 8GB
-* Limit wal_buffers to 16MB, default to 2% of RAM.
 * Limit work_mem, maintenance_work_mem to 2GB (server max)
 * Warn when total RAM <256MB (stub)
 * Update 8.4 settings files, default_statistics_target should be 100

@@ -59,6 +59,9 @@ def total_mem():
     try:
         if platform.system() == "Windows":
             mem = Win32Memory()
+        elif platform.system() == "Darwin":
+            # TODO Memory detection for Darwin
+            pass
         else:
             # Should work on other, more UNIX-ish platforms
             physPages = os.sysconf("SC_PHYS_PAGES")
@@ -462,7 +465,7 @@ def wizard_tune(config, options, settings):
     # Save all settings to be updated as (setting,value) dictionary values
     s = {}
     try:
-        s['max_connections'] = {'web':200, 'oltp':300, 'dw':20, 'mixed':80, 'desktop':5}[db_type]
+        s['max_connections'] = {'web':200, 'oltp':300, 'dw':20, 'mixed':100, 'desktop':5}[db_type]
     except KeyError:
         print "Error:  unexpected setting for db_type"
         sys.exit(1)
@@ -487,15 +490,18 @@ def wizard_tune(config, options, settings):
     # The base unit for memory types is the kB, so scale system memory to that
     mem = int(total_memory) / KB
     con = int(s['max_connections'])
-  
+
+    # TODO Validate that platform is on the supported list before using it
     if total_memory >= (256 * MB):
-        if False:  # platform.system()=="Windows"
-            # TODO Adjust shared_buffers for Windows
-            pass
-        else:
-            s['shared_buffers'] = {'web':mem / 4, 'oltp':mem / 4, 'dw':mem / 4,
-                                   'mixed':mem / 4, 'desktop':mem / 16}[db_type]
-    
+        s['shared_buffers'] = {'web':mem / 4, 'oltp':mem / 4, 'dw':mem / 4,
+                               'mixed':mem / 4, 'desktop':mem / 16}[db_type]
+
+        # Limit shared_buffers to 512MB on Windows.  Remember that shared_buffers
+        # is set in KB units.
+        if options.platform=="Windows":
+            if s['shared_buffers'] > (512 * MB / KB):
+                s['shared_buffers'] = (512 * MB / KB)
+
         s['effective_cache_size'] = {'web':mem * 3 / 4, 'oltp':mem * 3 / 4, 'dw':mem * 3 / 4,
                                      'mixed':mem * 3 / 4, 'desktop':mem / 4}[db_type]
     
@@ -505,23 +511,32 @@ def wizard_tune(config, options, settings):
         s['maintenance_work_mem'] = {'web':mem / 16, 'oltp':mem / 16,'dw':mem / 8,
                                    'mixed':mem / 16,'desktop':mem / 16}[db_type]
         
-        # Cap maintenance RAM at 1GB on servers with lots of memory
+        # Cap maintenance RAM at 2GB on servers with lots of memory
         # (Remember that the setting is in terms of kB here)
-        if s['maintenance_work_mem'] > (1 * GB):
-            s['maintenance_work_mem'] = 1 * GB
+        if s['maintenance_work_mem'] > (2 * GB / KB):
+            s['maintenance_work_mem'] = 2 * GB / KB
   
     else:
         # TODO HINT about this tool not being optimal for low memory systems
         pass
   
     # Checkpoint parameters
-    s['checkpoint_segments'] = {'web':8, 'oltp':16, 'dw':64,
-                                'mixed':16, 'desktop':3}[db_type]
+    s['checkpoint_segments'] = {'web':32, 'oltp':64, 'dw':128,
+                                'mixed':32, 'desktop':3}[db_type]
   
     s['checkpoint_completion_target'] = {'web':0.7, 'oltp':0.9, 'dw':0.9,
                                          'mixed':0.9, 'desktop':0.5}[db_type]
   
-    s['wal_buffers'] = 512 * s['checkpoint_segments']
+    # Follow auto-tuning guideline for wal_buffers added in 9.1, where it's
+    # set to 3% of shared_buffers up to a maximum of 16MB.
+    s['wal_buffers'] = 3 * s['shared_buffers'] / 100
+    if s['wal_buffers'] > 16*MB / KB:
+        s['wal_buffers'] = 16*MB / KB
+    # It's nice of wal_buffers is an even 16MB if it's near that number.  Since
+    # that is a common case on Windows, where shared_buffers is clipped to 512MB,
+    # round upwards in that situation
+    if s['wal_buffers'] > 14*MB / KB and s['wal_buffers'] < 16*MB / KB:
+        s['wal_buffers'] = 16*MB / KB
   
     # Partitioning and statistics
     if False:
@@ -536,9 +551,11 @@ def wizard_tune(config, options, settings):
                                       'mixed':100, 'desktop':100}[db_type]
 
     # Header to identify when the program ran, before any new settings
+    
+    config.identify_session("")
     config.identify_session("#------------------------------------------------------------------------------")
-    config.identify_session("# pgtune wizard run on %s" % (datetime.date.today()))
-    config.identify_session("# Based on %s KB RAM in the server" % mem )
+    config.identify_session("# pgtune run on %s" % (datetime.date.today()))
+    config.identify_session("# Based on %s KB RAM, platform %s" % (mem,options.platform))
     config.identify_session("#------------------------------------------------------------------------------")
     config.identify_session("")
     
@@ -569,6 +586,9 @@ def read_options(program_args):
   
     parser.add_option('-T', '--type', dest="db_type", default="Mixed", 
                       help="Database type, defaults to Mixed.  Valid options are DW, OLTP, Web, Mixed, Desktop")
+  
+    parser.add_option('-P', '--platform', dest="platform", default=platform.system(), 
+                      help="Platform, defaults to "+platform.system()+".  Valid options are Windows, Linux, and Darwin.  Use Darwin for Mac OS X.")
   
     parser.add_option('-c', '--connections', dest="connections", default=None, 
                       help="Maximum number of expected connections, default depends on database type")

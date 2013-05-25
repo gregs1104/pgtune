@@ -48,6 +48,9 @@ are the current parameters:
  * -T or --type : Specifies database type. Valid options are:
    DW, OLTP, Web, Mixed, Desktop
 
+ * -P or --platform : Specifies platform, defaults to the platform running
+   the program.  Valid options are Windows, Linux, and Darwin (Mac OS X).
+
  * -c or --connections: Specifies number of maximum connections expected.
    If not specified, it depends on database type.
 
