@@ -4,7 +4,7 @@ pgtune
 
 Sample usage shown by running with "--help"
 
-Copyright (c) 2009-2011, Gregory Smith
+Copyright (c) 2009-2013, Gregory Smith
 """
 
 import sys
@@ -505,10 +505,10 @@ def wizard_tune(config, options, settings):
         s['maintenance_work_mem'] = {'web':mem / 16, 'oltp':mem / 16,'dw':mem / 8,
                                    'mixed':mem / 16,'desktop':mem / 16}[db_type]
         
-        # Cap maintenence RAM at 1GB on servers with lots of memory
+        # Cap maintenance RAM at 1GB on servers with lots of memory
         # (Remember that the setting is in terms of kB here)
-        if s['maintenance_work_mem'] > (1 * MB):
-            s['maintenance_work_mem'] = 1 * MB
+        if s['maintenance_work_mem'] > (1 * GB):
+            s['maintenance_work_mem'] = 1 * GB
   
     else:
         # TODO HINT about this tool not being optimal for low memory systems
@@ -523,7 +523,7 @@ def wizard_tune(config, options, settings):
   
     s['wal_buffers'] = 512 * s['checkpoint_segments']
   
-    # Paritioning and statistics
+    # Partitioning and statistics
     if False:
         # TODO This code only made sense for PostgreSQL 8.3 and earlier.
         # Until that version can be singled out, the default for
