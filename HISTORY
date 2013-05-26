@@ -22,3 +22,4 @@ New   2011-05-08 Label tuned section of the output file more cleanly.
                  Remove tuning attempt on constraint_exclusion due to late 8.4 changes
                  Update default_statistics_target to final 8.4 values
                  Allow a single input parameter to be considered the input config file
+                 Add settings files for 9.0 and 9.1 on 64 bit platforms
