@@ -13,6 +13,8 @@ import datetime
 import optparse
 import csv
 import platform
+import re
+from subprocess import Popen, PIPE, STDOUT
 
 # Windows specific routines
 try:
@@ -60,8 +62,15 @@ def total_mem():
         if platform.system() == "Windows":
             mem = Win32Memory()
         elif platform.system() == "Darwin":
-            # TODO Memory detection for Darwin
-            pass
+            # Least ugly way to find the amount of RAM on OS X, tested on
+            # 10.6
+            cmd = 'sysctl hw.memsize'
+            p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+                      close_fds=True)
+            output = p.stdout.read()
+            m = re.match(r'^hw.memsize[:=]\s*(\d+)$', output.strip())
+            if m and m.groups():
+                mem = int(m.groups()[0])
         else:
             # Should work on other, more UNIX-ish platforms
             physPages = os.sysconf("SC_PHYS_PAGES")
