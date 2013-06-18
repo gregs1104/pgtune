@@ -11,8 +11,10 @@ Source installation
 -------------------
 
 There is no need to build/compile pgtune, it is a Python script.
-Extracting tarball to a convenient location is sufficient.
-Note that you will need the multiple 
+Extracting the tarball to a convenient location is sufficient.
+Note that you will need the multiple
+pg_settings-<version>_<architecture> files included with the
+program too, pgtune can't work without those.
 
 RPM Installation
 ----------------
@@ -99,7 +101,7 @@ License
 
 pgtune is licensed under a standard 3-clause BSD license.
 
-Copyright (c) 2009-2011, Gregory Smith
+Copyright (c) 2009-2013, Gregory Smith
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without 

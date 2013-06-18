@@ -496,8 +496,13 @@ def wizard_tune(config, options, settings):
         s['shared_buffers'] = {'web':mem / 4, 'oltp':mem / 4, 'dw':mem / 4,
                                'mixed':mem / 4, 'desktop':mem / 16}[db_type]
 
-        # Limit shared_buffers to 512MB on Windows.  Remember that shared_buffers
-        # is set in KB units.
+        # Limit shared_buffers to 512MB on Windows
+        #
+        # TODO This has been added but next tested yet, it may not be correct.
+        # The units on shared_buffers default to 8KB pages, not a single KB
+        # memory unit.  All of the logic setting that to a value has to be
+        # careful to respect that.  The unit can even change at compile time,
+        # but there aren't any known platforms that use a non-default value.
         if options.platform=="Windows":
             if s['shared_buffers'] > (512 * MB / KB):
                 s['shared_buffers'] = (512 * MB / KB)
