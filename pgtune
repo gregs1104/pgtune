@@ -95,6 +95,22 @@ def binaryround(value):
         multiplier = multiplier * 2
     return multiplier * value
 
+def arch_bits(arch):
+    """
+    Decode the usual strings for processor architecture, i386 and x86_64,
+    into how many bits the platform has.  Defaults to 64 if the input value is
+    not one of those.
+    >>> arch_bits('i386')
+    32
+    >>> arch_bits('x86_64')
+    64
+    """
+    if arch=='i386':
+        return 32
+    if arch=='x86_64':
+        return 64
+    return 64
+
 class PGConfigLine(object):
     """
     Stores the value of a single line in the postgresql.conf file, with the 
@@ -328,18 +344,15 @@ class PGSettings(object):
     starting in PostgreSQL 8.4
     """
 
-    def __init__(self, settings_dir):
+    def __init__(self, settings_dir, ver, bits):
         self.param_to_dict = {}
         self.settings_dir = settings_dir
+        self.arch=bits
+        self.version=ver
 
     def read_config_file(self):
-        platform_bits = 32
-        if platform.architecture()[0] == "64bit":
-            platform_bits = 64
-            
-        # TODO Support handling versions other than 8.4
-        # TODO Allow passing in platform bit size
-        setting_dump_file = os.path.join(self.settings_dir, "pg_settings-8.4-%s" % platform_bits)
+        setting_dump_file = os.path.join(self.settings_dir, 
+                                         "pg_settings-%s-%s" % (self.version,self.arch))
         setting_columns = ["name", "setting", "unit", "category", "short_desc",
                           "extra_desc", "context", "vartype", "min_val", "max_val", "enumvals",
                           "boot_val"]
@@ -485,7 +498,8 @@ def wizard_tune(config, options, settings):
     # Allow overriding the maximum connections
     if options.connections != None:
         s['max_connections'] = options.connections
-  
+        # TODO Limit connections on Windows
+
     # Estimate memory on this system via parameter or system lookup
     total_memory = options.total_memory
     if total_memory is None:
@@ -493,7 +507,7 @@ def wizard_tune(config, options, settings):
     if total_memory is None:
         print "Error:  total memory not specified and unable to detect"
         sys.exit(1)
-    
+
     # Memory allocation
     # Extract some values just to make the code below more compact
     # The base unit for memory types is the kB, so scale system memory to that
@@ -515,6 +529,7 @@ def wizard_tune(config, options, settings):
         if options.platform=="Windows":
             if s['shared_buffers'] > (512 * MB / KB):
                 s['shared_buffers'] = (512 * MB / KB)
+                # TODO HINT about the issue on Windows
 
         s['effective_cache_size'] = {'web':mem * 3 / 4, 'oltp':mem * 3 / 4, 'dw':mem * 3 / 4,
                                      'mixed':mem * 3 / 4, 'desktop':mem / 4}[db_type]
@@ -543,33 +558,30 @@ def wizard_tune(config, options, settings):
   
     # Follow auto-tuning guideline for wal_buffers added in 9.1, where it's
     # set to 3% of shared_buffers up to a maximum of 16MB.
+    # TODO Eliminate setting this at all on 9.1 and later
     s['wal_buffers'] = 3 * s['shared_buffers'] / 100
     if s['wal_buffers'] > 16*MB / KB:
         s['wal_buffers'] = 16*MB / KB
-    # It's nice of wal_buffers is an even 16MB if it's near that number.  Since
+    # It's nice if wal_buffers is an even 16MB if it's near that number.  Since
     # that is a common case on Windows, where shared_buffers is clipped to 512MB,
     # round upwards in that situation
     if s['wal_buffers'] > 14*MB / KB and s['wal_buffers'] < 16*MB / KB:
         s['wal_buffers'] = 16*MB / KB
-  
-    # Partitioning and statistics
-    if False:
-        # TODO This code only made sense for PostgreSQL 8.3 and earlier.
-        # Until that version can be singled out, the default for
-        # constraint_exclusion ('partition') starting in 8.4 is the right
-        # setting for every system type.
-        s['constraint_exclusion'] = {'web':'off', 'oltp':'off', 'dw':'on', 
-                                     'mixed':'on', 'desktop':'off'}[db_type]
-  
+
+    # TODO Eliminate setting this needlessly when on a version that
+    # defaults to 100  
     s['default_statistics_target'] = {'web':100, 'oltp':100, 'dw':500, 
                                       'mixed':100, 'desktop':100}[db_type]
 
-    # Header to identify when the program ran, before any new settings
-    
+    if (options.logging):
+        # TODO Add basic logging:  log_line_prefix, log_lock_waits, etc.
+        pass
+
+    # Header to identify when the program ran, before any new settings    
     config.identify_session("")
     config.identify_session("#------------------------------------------------------------------------------")
-    config.identify_session("# pgtune run on %s" % (datetime.date.today()))
-    config.identify_session("# Based on %s KB RAM, platform %s" % (mem,options.platform))
+    config.identify_session("# pgtune for version %s run on %s" % (options.db_version,datetime.date.today()))
+    config.identify_session("# Based on %s KB RAM, platform %s, %s clients and %s workload" % (mem,options.platform,con,db_type))
     config.identify_session("#------------------------------------------------------------------------------")
     config.identify_session("")
     
@@ -597,16 +609,25 @@ def read_options(program_args):
     
     parser.add_option('-M', '--memory', dest="total_memory", default=None, 
                       help="Total system memory, in bytes.  Will attempt to detect if unspecified")
-  
+
+    parser.add_option('-V', '--version', dest="db_version", default="8.4", 
+                      help="Major version number for target version of PostgreSQL to configure for.  Default is 8.4")
+      
     parser.add_option('-T', '--type', dest="db_type", default="Mixed", 
                       help="Database type, defaults to Mixed.  Valid options are DW, OLTP, Web, Mixed, Desktop")
   
     parser.add_option('-P', '--platform', dest="platform", default=platform.system(), 
                       help="Platform, defaults to "+platform.system()+".  Valid options are Windows, Linux, and Darwin.  Use Darwin for Mac OS X.")
+
+    parser.add_option('-A', '--arch', dest="arch", default=platform.machine(), 
+                      help="Processor architecture, this system is "+platform.machine()+".  Valid options are i386 and x86_64.")
   
     parser.add_option('-c', '--connections', dest="connections", default=None, 
                       help="Maximum number of expected connections, default depends on database type")
-  
+
+    parser.add_option('-L', '--logging', action="store_true", dest="logging",
+                      default="False", help="Add useful logging of server events to the configuration")
+
     parser.add_option('-D', '--debug', action="store_true", dest="debug",
                       default="False", help="Enable debugging mode")
   
@@ -626,7 +647,6 @@ def read_options(program_args):
     
     return options, args, parser
 
-
 def main(program_args):
     options, args, parser = read_options(program_args) 
 
@@ -640,7 +660,13 @@ def main(program_args):
         print >> sys.stderr,"Can't do anything without an input config file; try --help"
         parser.print_help()
         return(1)
-      
+
+    # Determine version of PostgreSQL to target
+    db_version = options.db_version   
+    if db_version is None:
+        print "Error:  database version not specified and unable to detect"
+        sys.exit(1)
+          
     config = PGConfigFile(configFile)
     config.read_config_file()
   
@@ -652,7 +678,9 @@ def main(program_args):
     if options.settings_dir is None:
         options.settings_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
   
-    settings = PGSettings(options.settings_dir)
+    settings = PGSettings(options.settings_dir,
+                          options.db_version,arch_bits(options.arch))
+    
     settings.read_config_file()
     config.store_settings(settings)
   
