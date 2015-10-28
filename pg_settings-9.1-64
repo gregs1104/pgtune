@@ -195,6 +195,7 @@ vacuum_defer_cleanup_age	0		Replication / Master Server	Number of transactions b
 vacuum_freeze_min_age	50000000		Client Connection Defaults / Statement Behavior	Minimum age at which VACUUM should freeze a table row.	\N	user	integer	0	1000000000	\N	50000000
 vacuum_freeze_table_age	150000000		Client Connection Defaults / Statement Behavior	Age at which VACUUM should scan whole table to freeze tuples.	\N	user	integer	0	2000000000	\N	150000000
 wal_block_size	8192		Preset Options	Shows the block size in the write ahead log.	\N	internal	integer	8192	8192	\N	8192
+wal_buffers	-1	8kB	Write-Ahead Log / Settings	Sets the number of disk-page buffers in shared memory for WAL.	\N	postmaster	integer	4	2147483647	\N	8
 wal_keep_segments	0		Replication / Master Server	Sets the number of WAL files held for standby servers.	\N	sighup	integer	0	2147483647	\N	0
 wal_level	minimal	\N	Write-Ahead Log / Settings	Set the level of information written to the WAL.	\N	postmaster	enum	\N	\N	{minimal,archive,hot_standby}	minimal
 wal_receiver_status_interval	10	s	Replication / Standby Servers	Sets the maximum interval between WAL receiver status reports to the primary.	\N	sighup	integer	0	2147483	\N	10
