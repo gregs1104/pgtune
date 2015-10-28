@@ -556,17 +556,18 @@ def wizard_tune(config, options, settings):
     s['checkpoint_completion_target'] = {'web':0.7, 'oltp':0.9, 'dw':0.9,
                                          'mixed':0.9, 'desktop':0.5}[db_type]
   
-    # Follow auto-tuning guideline for wal_buffers added in 9.1, where it's
-    # set to 3% of shared_buffers up to a maximum of 16MB.
-    # TODO Eliminate setting this at all on 9.1 and later
-    s['wal_buffers'] = 3 * s['shared_buffers'] / 100
-    if s['wal_buffers'] > 16*MB / KB:
-        s['wal_buffers'] = 16*MB / KB
-    # It's nice if wal_buffers is an even 16MB if it's near that number.  Since
-    # that is a common case on Windows, where shared_buffers is clipped to 512MB,
-    # round upwards in that situation
-    if s['wal_buffers'] > 14*MB / KB and s['wal_buffers'] < 16*MB / KB:
-        s['wal_buffers'] = 16*MB / KB
+    # For versions < 9.1, follow auto-tuning guideline for wal_buffers added
+    # in 9.1, where it's set to 3% of shared_buffers up to a maximum of 16MB.
+    # Starting with 9.1, the default value of -1 should be fine.
+    if float(options.db_version) < 9.1:
+        s['wal_buffers'] = 3 * s['shared_buffers'] / 100
+        if s['wal_buffers'] > 16*MB / KB:
+            s['wal_buffers'] = 16*MB / KB
+        # It's nice if wal_buffers is an even 16MB if it's near that number.  Since
+        # that is a common case on Windows, where shared_buffers is clipped to 512MB,
+        # round upwards in that situation
+        if s['wal_buffers'] > 14*MB / KB and s['wal_buffers'] < 16*MB / KB:
+            s['wal_buffers'] = 16*MB / KB
 
     # TODO Eliminate setting this needlessly when on a version that
     # defaults to 100  
