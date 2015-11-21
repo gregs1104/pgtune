@@ -53,7 +53,7 @@ except:
 KB = 1024
 MB = 1024 * KB
 GB = 1024 * MB
-TB = 1024 * TB
+TB = 1024 * GB
 KB_PER_MB = MB / KB
 KB_PER_GB = GB / KB
 KB_PER_TB = TB / KB
