@@ -214,7 +214,7 @@ vacuum_freeze_table_age	150000000		Client Connection Defaults / Statement Behavi
 vacuum_multixact_freeze_min_age	5000000		Client Connection Defaults / Statement Behavior	Minimum age at which VACUUM should freeze a MultiXactId in a table row.	\N	user	integer	0	1000000000	\N	5000000
 vacuum_multixact_freeze_table_age	150000000		Client Connection Defaults / Statement Behavior	Multixact age at which VACUUM should scan whole table to freeze tuples.	\N	user	integer	0	2000000000	\N	150000000
 wal_block_size	8192		Preset Options	Shows the block size in the write ahead log.	\N	internal	integer	8192	8192	\N	8192
-wal_buffers	2048	8kB	Write-Ahead Log / Settings	Sets the number of disk-page buffers in shared memory for WAL.	\N	postmaster	integer	4	2147483647	\N	8
+wal_buffers	-1	8kB	Write-Ahead Log / Settings	Sets the number of disk-page buffers in shared memory for WAL.	\N	postmaster	integer	4	2147483647	\N	8
 wal_keep_segments	0		Replication / Sending Servers	Sets the number of WAL files held for standby servers.	\N	sighup	integer	0	2147483647	\N	0
 wal_level	minimal	\N	Write-Ahead Log / Settings	Set the level of information written to the WAL.	\N	postmaster	enum	\N	\N	{minimal,archive,hot_standby}	minimal
 wal_log_hints	off	\N	Write-Ahead Log / Settings	Writes full pages to WAL when first modified after a checkpoint, even for a non-critical modification.	\N	superuser	bool	\N	\N	\N	off
