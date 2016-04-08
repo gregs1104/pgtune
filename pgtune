@@ -435,7 +435,7 @@ class PGSettings(object):
         pages are two popular ones and that is reflected in
         memory_divisor
 
-        >>> ps = PGSettings('.')
+        >>> ps = PGSettings('.', '9.5', '64')
         >>> ps.read_config_file()
         >>> ps.parse_int('max_connections', '10')
         10
