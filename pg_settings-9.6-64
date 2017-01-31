@@ -152,10 +152,10 @@ max_stack_depth	2048	kB	Resource Usage / Memory	Sets the maximum stack depth, in
 max_standby_archive_delay	30000	ms	Replication / Standby Servers	Sets the maximum delay before canceling queries when a hot standby server is processing archived WAL data.	\N	sighup	integer	-1	2147483647	\N	30000
 max_standby_streaming_delay	30000	ms	Replication / Standby Servers	Sets the maximum delay before canceling queries when a hot standby server is processing streamed WAL data.	\N	sighup	integer	-1	2147483647	\N	30000
 max_wal_senders	0	\N	Replication / Sending Servers	Sets the maximum number of simultaneously running WAL sender processes.	\N	postmaster	integer	0	262143	\N	0
-max_wal_size	64	\N	Write-Ahead Log / Checkpoints	Sets the WAL size that triggers a checkpoint.	\N	sighup	integer	2	2147483647	\N	64
+max_wal_size	64	8kB	Write-Ahead Log / Checkpoints	Sets the WAL size that triggers a checkpoint.	\N	sighup	integer	2	2147483647	\N	64
 max_worker_processes	8	\N	Resource Usage / Asynchronous Behavior	Maximum number of concurrent worker processes.	\N	postmaster	integer	0	262143	\N	8
 min_parallel_relation_size	1024	8kB	Query Tuning / Planner Cost Constants	Sets the minimum size of relations to be considered for parallel scan.	\N	user	integer	0	715827882	\N	1024
-min_wal_size	5	\N	Write-Ahead Log / Checkpoints	Sets the minimum size to shrink the WAL to.	\N	sighup	integer	2	2147483647	\N	5
+min_wal_size	5	8kB	Write-Ahead Log / Checkpoints	Sets the minimum size to shrink the WAL to.	\N	sighup	integer	2	2147483647	\N	5
 old_snapshot_threshold	-1	min	Resource Usage / Asynchronous Behavior	Time before a snapshot is too old to read pages changed after the snapshot was taken.	A value of -1 disables this feature.	postmaster	integer	-1	86400	\N	-1
 operator_precedence_warning	off	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Emit a warning for constructs that changed meaning since PostgreSQL 9.4.	\N	user	bool	\N	\N	\N	off
 parallel_setup_cost	1000	\N	Query Tuning / Planner Cost Constants	Sets the planner's estimate of the cost of starting up worker processes for parallel query.	\N	user	real	0	1.79769e+308	\N	1000
