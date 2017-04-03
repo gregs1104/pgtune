@@ -146,9 +146,9 @@ max_stack_depth	2048	kB	Resource Usage / Memory	Sets the maximum stack depth, in
 max_standby_archive_delay	30000	ms	Replication / Standby Servers	Sets the maximum delay before canceling queries when a hot standby server is processing archived WAL data.	\N	sighup	integer	-1	2147483647	\N	30000
 max_standby_streaming_delay	30000	ms	Replication / Standby Servers	Sets the maximum delay before canceling queries when a hot standby server is processing streamed WAL data.	\N	sighup	integer	-1	2147483647	\N	30000
 max_wal_senders	0	\N	Replication / Sending Servers	Sets the maximum number of simultaneously running WAL sender processes.	\N	postmaster	integer	0	8388607	\N	0
-max_wal_size	64	\N	Write-Ahead Log / Checkpoints	Sets the WAL size that triggers a checkpoint.	\N	sighup	integer	2	2147483647	\N	64
+max_wal_size	64	8kB	Write-Ahead Log / Checkpoints	Sets the WAL size that triggers a checkpoint.	\N	sighup	integer	2	2147483647	\N	64
 max_worker_processes	8	\N	Resource Usage / Asynchronous Behavior	Maximum number of concurrent worker processes.	\N	postmaster	integer	1	8388607	\N	8
-min_wal_size	5	\N	Write-Ahead Log / Checkpoints	Sets the minimum size to shrink the WAL to.	\N	sighup	integer	2	2147483647	\N	5
+min_wal_size	5	8kB	Write-Ahead Log / Checkpoints	Sets the minimum size to shrink the WAL to.	\N	sighup	integer	2	2147483647	\N	5
 operator_precedence_warning	off	\N	Version and Platform Compatibility / Previous PostgreSQL Versions	Emit a warning for constructs that changed meaning since PostgreSQL 9.4.	\N	user	bool	\N	\N	\N	off
 password_encryption	on	\N	Connections and Authentication / Security and Authentication	Encrypt passwords.	When a password is specified in CREATE USER or ALTER USER without writing either ENCRYPTED or UNENCRYPTED, this parameter determines whether the password is to be encrypted.	user	bool	\N	\N	\N	on
 port	5432	\N	Connections and Authentication / Connection Settings	Sets the TCP port the server listens on.	\N	postmaster	integer	1	65535	\N	5432
