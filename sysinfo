@@ -1,0 +1,222 @@
+#!/usr/bin/env python
+"""
+sysinfo
+Testing harness to make sure machine info etc. parse correctly.
+
+Copyright (c) 2009-2020, Gregory Smith
+"""
+
+import os
+import platform
+import re
+import sys
+from string import maketrans
+from subprocess import Popen, PIPE, STDOUT
+
+# Windows specific routines
+try:
+    # ctypes is only available starting in Python 2.5
+    from ctypes import *
+    # wintypes is only is available on Windows
+    from ctypes.wintypes import *
+  
+    def Win32Memory():
+        class memoryInfo(Structure):
+            _fields_ = [
+              ('dwLength', c_ulong),
+              ('dwMemoryLoad', c_ulong),
+              ('dwTotalPhys', c_ulong),
+              ('dwAvailPhys', c_ulong),
+              ('dwTotalPageFile', c_ulong),
+              ('dwAvailPageFile', c_ulong),
+              ('dwTotalVirtual', c_ulong),
+              ('dwAvailVirtual', c_ulong)
+              ]
+        
+        mi = memoryInfo()
+        mi.dwLength = sizeof(memoryInfo)
+        windll.kernel32.GlobalMemoryStatus(byref(mi))
+        return mi.dwTotalPhys
+
+except:
+    # TODO For pre-2.5, and possibly replacing the above in all cases, you
+    # can grab this from the registry via _winreg (standard as of 2.0) looking
+    # at "HARDWARE\RESOURCEMAP\System Resources\Physical Memory"
+    # see http://groups.google.com/groups?hl=en&lr=&client=firefox-a&threadm=b%25B_8.3255%24Dj6.2964%40nwrddc04.gnilink.net&rnum=2&prev=/groups%3Fhl%3Den%26lr%3D%26client%3Dfirefox-a%26q%3DHARDWARE%255CRESOURCEMAP%255CSystem%2BResources%255CPhysical%2BMemory%26btnG%3DSearch
+    pass
+
+def total_mem():
+    """
+    Determine total memory on Windows, Mac OS Darwin, and UNIX-ish systems
+    """
+    try:
+        if platform.system() == "Windows":
+            mem = Win32Memory()
+        elif platform.system() == "Darwin":
+            # Least ugly way to find the amount of RAM on OS X, first tested
+            # on 10.6 and stll working on 10.15
+            cmd = 'sysctl hw.memsize'
+            p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+                      close_fds=True)
+            output = p.stdout.read()
+            m = re.match(r'^hw.memsize[:=]\s*(\d+)$', output.strip())
+            if m and m.groups():
+                mem = int(m.groups()[0])
+        else:
+            # Should work on other, more UNIX-ish platforms
+            physPages = os.sysconf("SC_PHYS_PAGES")
+            pageSize = os.sysconf("SC_PAGE_SIZE")
+            mem = physPages * pageSize
+        return mem
+    except:
+        return None
+
+def arch_bits(arch):
+    """
+    Decode the usual strings for processor architecture, i386 and x86_64,
+    into how many bits the platform has.  Defaults to 64 if the input value is
+    not one of those.
+    >>> arch_bits('i386')
+    32
+    >>> arch_bits('x86_64')
+    64
+    """
+    if arch=='i386':
+        return 32
+    if arch=='x86_64':
+        return 64
+    return 64
+
+def cpu_count():
+    """
+    Estimate CPU count from various probes
+    """
+    try:
+        # Prefer online processor count sysconf if that's available
+        if hasattr(os, 'sysconf') and 'SC_NPROCESSORS_ONLN' in os.sysconf_names:
+            return int(os.sysconf('SC_NPROCESSORS_ONLN'))
+        try:
+            # All but ancient Python have multiprocessing
+            import multiprocessing
+            return multiprocessing.cpu_count()
+        except:
+            # Windows may (should?) have 'NUMBER_OF_PROCESSORS
+            #  environment variable
+            if 'NUMBER_OF_PROCESSORS' in os.environ:
+                return int(os.environ['NUMBER_OF_PROCESSORS'])
+    except Exception as e:
+        print "Exception detecting CPU count:", e
+    return None
+
+def machine_summary():
+    """
+    Estimate memory on this system via parameter or system lookup.
+    """
+    total_memory = total_mem()
+    if total_memory is None:
+        print "Error:  total memory not specified and unable to detect"
+        sys.exit(1)
+    print "Memory", total_memory
+
+    cpus=cpu_count()
+    if cpus is None:
+        print "Error:  CPU count not specified and unable to detect"
+        sys.exit(1)
+    print "CPU Count",cpus
+
+    arch=platform.machine()
+    print "Arch bits",arch_bits(arch)
+
+def version_parse(version):
+    """
+    Parse a PostgreSQL version number text into a float with one fractional digit.
+    This supports any mix of ".-_" characters as delimiters.
+    Typical input will take "V12_5" and return the number 12.5
+    Any PG version over 50 is assumed to be junk.
+    That avoids problems like "100" turning into 100.0 when it should be 10.0
+    """
+    max_pg=50
+    v=version
+
+    # Remove any non-digit junk from start
+    v=v.lstrip()
+    v=v.lstrip('v')
+    v=v.lstrip('V')
+
+    # Replace acceptable delimiters with "." and split
+    trans=maketrans("_-","..")
+    v=v.translate(trans)
+    digits=v.split('.')
+
+    # If there's one giant version number, like "96" or "120", assume it's just
+    # missing a dot.  
+    if len(digits)==1:
+        if float(digits[0]) > max_pg:
+            f=float(v) / 10
+            if f>=max_pg:  return None
+            return f
+        else:
+            return float(digits[0])
+
+    # Normal major.minor number set
+    if len(digits)>=2:
+        f=float(digits[0]) + float(digits[1]) / 10
+        if f > max_pg:  return None
+        return f
+    # Give up...for now
+    return None
+
+def test_parsing():
+    """
+    Homemade unit testing
+    List a bunch of version strings and what they should be parsed as.
+    None results mean the version is rejected by the code.
+    """
+    test_versions = dict([
+        ("9.6" , 9.6),
+        ("96" , 9.6),
+        ("9_6" , 9.6),
+        ("9.6.0" , 9.6),
+        ("V9.6" , 9.6),
+        ("V96" , 9.6),
+        ("v9_6" , 9.6),
+        ("v9.6.1" , 9.6),
+        ("10.0" , 10.0),
+        ("10" , 10.0),
+        ("100" , 10.0),
+        ("10_0" , 10.0),
+        ("100" , 10.0),
+        ("v10.0" , 10.0),
+        ("V100" , 10.0),
+        ("v10_0" , 10.0),
+        ("V10.0.0" , 10.0),
+        ("V10.0.21" , 10.0),
+        ("v9.6.0.0" , 9.6),
+        ("9_6_0_0" , 9.6),
+        ("9600" , None),
+        ("9.6_1" , 9.6),
+        ("9_6.1" , 9.6),
+        ("1000" , None),
+        ("10.1.0.0" , 10.1),
+        ("10_1_0_0" , 10.1),
+        ("1000" , None),
+        ("10.0_0" , 10),
+        ("10_1.1" , 10.1)
+        ])
+
+    failed=0
+    for v in test_versions.keys():
+        out=version_parse(v)
+        if out!=test_versions[v]:
+            failed=failed+1
+            print "Failure",out==test_versions[v],v,out,test_versions[v]
+    if failed>0:
+        print "Failed version parsing tests:",failed
+        print
+
+def main(program_args):
+    test_parsing()
+    machine_summary()
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

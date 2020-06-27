@@ -588,8 +588,8 @@ def wizard_tune(config, options, settings):
     # Write the new settings out
     for key in s.keys():
         value = s[key]
-        # TODO Make this logic part of the config class, so this
-        # function doesn't need to be passed settings
+        # TODO Make this logic part of the config class when values are stored.  Then
+        # the binaryround function doesn't need to be passed the whole settings structure
         if settings.memory_unit(key):
             value = binaryround(s[key])
         # TODO Add show method to config class for similar reasons
