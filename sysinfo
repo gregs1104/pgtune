@@ -92,11 +92,17 @@ def cpu_count():
     Estimate CPU count from various probes
     """
     try:
-        # Prefer online processor count sysconf if that's available
+        # Prefer online processor count sysconf if that's available.
+        # Of course (sigh) there are two ways the parameter is commonly spelled.
         if hasattr(os, 'sysconf') and 'SC_NPROCESSORS_ONLN' in os.sysconf_names:
             return int(os.sysconf('SC_NPROCESSORS_ONLN'))
+        if hasattr(os, 'sysconf') and '_SC_NPROCESSORS_ONLN' in os.sysconf_names:
+            return int(os.sysconf('_SC_NPROCESSORS_ONLN'))
+
+        # TODO Does the above work on FreeBSD, or should we spawn `sysctl hw.ncpu`?
+
         try:
-            # All but ancient Python have multiprocessing
+            # All but ancient <2.6 Python have multiprocessing
             import multiprocessing
             return multiprocessing.cpu_count()
         except:
