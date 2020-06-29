@@ -435,7 +435,7 @@ class PGSettings(object):
         pages are two popular ones and that is reflected in
         memory_divisor
 
-        >>> ps = PGSettings('.')
+        >>> ps = PGSettings('.', '9.5', '64')
         >>> ps.read_config_file()
         >>> ps.parse_int('max_connections', '10')
         10
@@ -549,10 +549,19 @@ def wizard_tune(config, options, settings):
         # TODO HINT about this tool not being optimal for low memory systems
         pass
   
-    # Checkpoint parameters
-    s['checkpoint_segments'] = {'web':32, 'oltp':64, 'dw':128,
-                                'mixed':32, 'desktop':3}[db_type]
-  
+    if float(options.db_version) < 9.5:
+        # Checkpoint parameters
+        s['checkpoint_segments'] = {'web':32, 'oltp':64, 'dw':128,
+                                    'mixed':32, 'desktop':3}[db_type]
+    else:
+        s['min_wal_size'] = {'web': (1 * GB / KB), 'oltp': (2 * GB / KB),
+                             'dw': (4 * GB / KB), 'desktop': (100 * MB / KB),
+                             'mixed': (1 * GB / KB)}[db_type]
+
+        s['max_wal_size'] = {'web': (2 * GB / KB), 'oltp': (4 * GB / KB),
+                             'dw': (8 * GB / KB), 'desktop': (100 * MB / KB),
+                             'mixed': (2 * GB / KB)}[db_type]
+
     s['checkpoint_completion_target'] = {'web':0.7, 'oltp':0.9, 'dw':0.9,
                                          'mixed':0.9, 'desktop':0.5}[db_type]
   
